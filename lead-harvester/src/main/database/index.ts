@@ -46,11 +46,57 @@ export function initDatabase(): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  // Run schema
+  // Run schema (for new databases)
   db.exec(SCHEMA);
   db.exec(INITIAL_SETTINGS);
 
+  // Run migrations for existing databases
+  runMigrations(db);
+
   return db;
+}
+
+/**
+ * Run database migrations for existing databases
+ */
+function runMigrations(db: Database.Database): void {
+  // Helper to safely add column if it doesn't exist
+  const addColumnIfNotExists = (table: string, column: string, type: string, defaultValue?: string) => {
+    try {
+      const defaultClause = defaultValue !== undefined ? ` DEFAULT ${defaultValue}` : '';
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`);
+    } catch (e) {
+      // Column already exists, ignore
+    }
+  };
+
+  // Leads table migrations
+  addColumnIfNotExists('leads', 'lead_status', 'TEXT', "'new'");
+  addColumnIfNotExists('leads', 'notes', 'TEXT', 'NULL');
+  addColumnIfNotExists('leads', 'follow_up_date', 'TEXT', 'NULL');
+  addColumnIfNotExists('leads', 'social_media', 'TEXT', 'NULL');
+  addColumnIfNotExists('leads', 'business_hours', 'TEXT', 'NULL');
+  addColumnIfNotExists('leads', 'has_contact_form', 'INTEGER', 'NULL');
+  addColumnIfNotExists('leads', 'latitude', 'REAL', 'NULL');
+  addColumnIfNotExists('leads', 'longitude', 'REAL', 'NULL');
+  addColumnIfNotExists('leads', 'review_sentiment', 'TEXT', 'NULL');
+
+  // Settings table migrations
+  addColumnIfNotExists('settings', 'auto_backup_enabled', 'INTEGER', '1');
+  addColumnIfNotExists('settings', 'auto_backup_interval', 'INTEGER', '24');
+  addColumnIfNotExists('settings', 'max_backups', 'INTEGER', '7');
+  addColumnIfNotExists('settings', 'extract_social_media', 'INTEGER', '1');
+  addColumnIfNotExists('settings', 'extract_business_hours', 'INTEGER', '1');
+  addColumnIfNotExists('settings', 'detect_contact_forms', 'INTEGER', '1');
+
+  // Create new tables if they don't exist (handled by SCHEMA, but ensure indexes)
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_leads_lead_status ON leads(lead_status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_leads_follow_up_date ON leads(follow_up_date)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_id ON lead_notes(lead_id)');
+  } catch (e) {
+    // Indexes might already exist
+  }
 }
 
 export function getDatabase(): Database.Database {
