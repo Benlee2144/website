@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Variables for theming - Clean, high contrast design */
+/* CSS Variables - Clean light theme */
 :root {
   --color-primary: 59 130 246;
   --color-bg: 249 250 251;
@@ -10,25 +10,9 @@
   --color-border: 209 213 219;
   --color-text: 17 24 39;
   --color-text-muted: 75 85 99;
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(209, 213, 219, 0.8);
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.3);
-}
-
-.dark {
-  --color-bg: 15 23 42;
-  --color-surface: 30 41 59;
-  --color-border: 71 85 105;
-  --color-text: 248 250 252;
-  --color-text-muted: 148 163 184;
-  --glass-bg: rgba(30, 41, 59, 0.95);
-  --glass-border: rgba(71, 85, 105, 0.8);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
 }
 
 /* Custom scrollbar */
@@ -38,18 +22,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(var(--color-bg));
+  background: #f1f5f9;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--color-border));
+  background: #cbd5e1;
   border-radius: 4px;
-  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--color-text-muted));
+  background: #94a3b8;
 }
 
 /* Base styles */
@@ -67,14 +50,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: rgb(var(--color-bg));
-  color: rgb(var(--color-text));
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* Dark mode body background */
-.dark body {
-  background-color: rgb(var(--color-bg));
+  background-color: #f9fafb;
+  color: #111827;
 }
 
 /* Drag region for title bar (macOS) */
@@ -90,103 +67,95 @@ body {
 @layer components {
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95;
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 focus:ring-primary-500 shadow-md hover:shadow-lg;
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm;
   }
 
   .btn-secondary {
-    @apply btn bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500 border border-gray-200 dark:border-gray-600;
+    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 border border-gray-300;
   }
 
   .btn-danger {
-    @apply btn bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 focus:ring-red-500 shadow-md hover:shadow-lg;
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm;
   }
 
   .btn-success {
-    @apply btn bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-500 shadow-md hover:shadow-lg;
-  }
-
-  .btn-warning {
-    @apply btn bg-gradient-to-r from-yellow-400 to-yellow-500 text-white hover:from-yellow-500 hover:to-yellow-600 focus:ring-yellow-500 shadow-md hover:shadow-lg;
+    @apply btn bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 shadow-sm;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500;
+    @apply btn bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500;
   }
 
   .btn-sm {
-    @apply px-3 py-1.5 text-xs rounded-lg;
+    @apply px-3 py-1.5 text-xs;
   }
 
   .btn-lg {
-    @apply px-6 py-3 text-base rounded-2xl;
+    @apply px-6 py-3 text-base;
   }
 
   /* Inputs */
   .input {
-    @apply block w-full px-4 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed transition-all duration-200;
+    @apply block w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed;
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5;
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
   }
 
   /* Filter components */
   .filter-toggle {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors;
   }
 
   .filter-select {
-    @apply px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50;
+    @apply px-3 py-1.5 bg-white rounded-lg border border-gray-300 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500;
   }
 
   .filter-input {
-    @apply px-2 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50;
+    @apply px-2 py-1.5 bg-white rounded-lg border border-gray-300 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500;
   }
 
   .checkbox {
-    @apply w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-gray-800;
+    @apply w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white;
   }
 
-  /* Cards - Clean solid design */
+  /* Cards */
   .card {
-    @apply bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 transition-all duration-200;
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
   }
 
   .card-hover {
-    @apply card hover:shadow-lg hover:border-primary-400 dark:hover:border-primary-600;
-  }
-
-  .card-glass {
-    @apply bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-slate-700;
+    @apply card hover:shadow-md hover:border-blue-400;
   }
 
   /* Badges */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
   }
 
   .badge-success {
-    @apply badge bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 ring-1 ring-green-500/20;
+    @apply badge bg-green-100 text-green-800;
   }
 
   .badge-warning {
-    @apply badge bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 ring-1 ring-yellow-500/20;
+    @apply badge bg-yellow-100 text-yellow-800;
   }
 
   .badge-error {
-    @apply badge bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 ring-1 ring-red-500/20;
+    @apply badge bg-red-100 text-red-800;
   }
 
   .badge-info {
-    @apply badge bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 ring-1 ring-blue-500/20;
+    @apply badge bg-blue-100 text-blue-800;
   }
 
   .badge-gray {
-    @apply badge bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 ring-1 ring-gray-500/20;
+    @apply badge bg-gray-100 text-gray-800;
   }
 
   /* Tables */
@@ -195,37 +164,32 @@ body {
   }
 
   .table {
-    @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
+    @apply min-w-full divide-y divide-gray-200;
   }
 
   .table th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-100 dark:bg-slate-800;
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50;
   }
 
   .table td {
-    @apply px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-nowrap;
+    @apply px-4 py-3 text-sm text-gray-800 whitespace-nowrap;
   }
 
   .table tbody tr {
-    @apply hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150;
+    @apply hover:bg-gray-50 cursor-pointer transition-colors duration-150;
   }
 
   /* Sidebar */
   .sidebar {
-    @apply w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col;
+    @apply w-64 bg-white border-r border-gray-200 flex flex-col;
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors duration-150 rounded-lg mx-2 my-0.5;
+    @apply flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-150 rounded-lg mx-2 my-0.5;
   }
 
   .sidebar-item.active {
-    @apply bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300;
-  }
-
-  .sidebar-item.active::before {
-    content: '';
-    @apply absolute left-0 w-1 h-8 bg-primary-500 rounded-r-full;
+    @apply bg-blue-50 text-blue-700;
   }
 
   /* Modal / Dialog */
@@ -234,7 +198,7 @@ body {
   }
 
   .modal {
-    @apply bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 max-w-lg w-full mx-4 transform transition-all;
+    @apply bg-white rounded-xl shadow-xl border border-gray-200 max-w-lg w-full mx-4;
   }
 
   /* Stats cards */
@@ -243,20 +207,20 @@ body {
   }
 
   .stat-value {
-    @apply text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent;
+    @apply text-3xl font-bold text-blue-600;
   }
 
   .stat-label {
-    @apply text-sm text-gray-500 dark:text-gray-400 mt-1;
+    @apply text-sm text-gray-500 mt-1;
   }
 
   /* Progress bar */
   .progress {
-    @apply h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden;
+    @apply h-2 bg-gray-200 rounded-full overflow-hidden;
   }
 
   .progress-bar {
-    @apply h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-300;
+    @apply h-full bg-blue-500 rounded-full transition-all duration-300;
   }
 }
 
@@ -308,35 +272,6 @@ body {
   }
 }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
@@ -345,28 +280,14 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
-.animate-scaleIn {
-  animation: scaleIn 0.2s ease-out;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
 /* Spinner */
 .spinner {
-  border: 3px solid rgb(var(--color-border));
-  border-top: 3px solid rgb(var(--color-primary));
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
   border-radius: 50%;
   width: 24px;
   height: 24px;
-  animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 .spinner-sm {
@@ -390,80 +311,27 @@ body {
   }
 }
 
-/* Gradient text */
-.gradient-text {
-  @apply bg-gradient-to-r from-primary-600 via-primary-500 to-blue-400 bg-clip-text text-transparent;
-}
-
-/* Hover lift effect */
-.hover-lift {
-  @apply transition-all duration-200;
-}
-
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-/* Glass panel */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border);
-}
-
-/* Glow effects */
-.glow-primary {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-}
-
-.glow-success {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-}
-
-.glow-danger {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-}
-
-/* Gradient borders */
-.gradient-border {
-  position: relative;
-}
-
-.gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-
 /* Focus ring */
 .focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
 }
 
 /* Skeleton loading */
 .skeleton {
-  @apply bg-gray-200 dark:bg-gray-700 rounded animate-pulse;
+  @apply bg-gray-200 rounded animate-pulse;
 }
 
 /* Divider */
 .divider {
-  @apply border-t border-gray-200 dark:border-gray-700;
+  @apply border-t border-gray-200;
 }
 
 /* Text selection */
 ::selection {
-  @apply bg-primary-500/30;
+  @apply bg-blue-500/30;
 }
 
 /* Custom focus visible */
 :focus-visible {
-  @apply outline-none ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-gray-900;
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
 }
