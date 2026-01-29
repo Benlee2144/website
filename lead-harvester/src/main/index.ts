@@ -5,7 +5,8 @@ import { registerAllHandlers } from './ipc';
 
 let mainWindow: BrowserWindow | null = null;
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+// Only use dev mode when explicitly set - this allows npm run start to work with built files
+const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
