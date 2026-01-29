@@ -33,6 +33,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [emailVerifications, setEmailVerifications] = useState<Map<string, VerifiedEmail>>(new Map());
+  const [verifyingEmails, setVerifyingEmails] = useState(false);
 
   const { data: tags, refetch: refetchTags } = useTags();
 
@@ -159,13 +160,25 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
       : sortedLeads;
 
     const allEmails = leadsToVerify.flatMap(l => l.emails);
-    if (allEmails.length === 0) return;
+    if (allEmails.length === 0) {
+      alert('No emails to verify. Run enrichment first to extract emails from websites.');
+      return;
+    }
 
-    const result = await window.api.email.verifyBulk(allEmails);
-    if (result.success && result.data) {
-      const newVerifications = new Map(emailVerifications);
-      result.data.forEach(v => newVerifications.set(v.email, v));
-      setEmailVerifications(newVerifications);
+    setVerifyingEmails(true);
+    try {
+      const result = await window.api.email.verifyBulk(allEmails);
+      if (result.success && result.data) {
+        const newVerifications = new Map(emailVerifications);
+        result.data.forEach(v => newVerifications.set(v.email, v));
+        setEmailVerifications(newVerifications);
+
+        const validCount = result.data.filter(v => v.status === 'valid').length;
+        const invalidCount = result.data.filter(v => v.status === 'invalid').length;
+        alert(`Verified ${result.data.length} emails: ${validCount} valid, ${invalidCount} invalid`);
+      }
+    } finally {
+      setVerifyingEmails(false);
     }
   };
 
@@ -418,8 +431,9 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               <button
                 onClick={handleVerifyEmails}
                 className="btn-sm btn-secondary"
+                disabled={verifyingEmails}
               >
-                Verify Emails
+                {verifyingEmails ? 'Verifying...' : 'Verify Emails'}
               </button>
               <button
                 onClick={() => setSelectedLeadIds(new Set())}
