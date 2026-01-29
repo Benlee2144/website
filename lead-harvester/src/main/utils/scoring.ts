@@ -76,9 +76,9 @@ export function calculateLeadScore(lead: Partial<Lead>): number {
  * (has phone but missing website or email)
  */
 export function isOpportunityLead(lead: Lead): boolean {
-  const hasPhone = lead.phone && lead.phone.length > 0;
-  const hasWebsite = lead.websiteUrl && lead.websiteUrl.length > 0;
-  const hasEmail = lead.emails && lead.emails.length > 0;
+  const hasPhone = Boolean(lead.phone && lead.phone.length > 0);
+  const hasWebsite = Boolean(lead.websiteUrl && lead.websiteUrl.length > 0);
+  const hasEmail = Boolean(lead.emails && lead.emails.length > 0);
 
   return hasPhone && (!hasWebsite || !hasEmail);
 }

@@ -98,10 +98,13 @@ export async function startRun(projectId: string): Promise<void> {
     await initEnrichment(settings);
 
     // Check for existing run state (resume capability)
-    let runState = getRunState(projectId);
-    const isResume = runState !== null && runState.phase !== 'completed';
+    let existingState = getRunState(projectId);
+    const isResume = existingState !== null && existingState.phase !== 'completed';
 
-    if (!isResume) {
+    let runState: RunState;
+    if (isResume && existingState) {
+      runState = existingState;
+    } else {
       // Clear old leads for fresh run
       deleteLeadsByProject(projectId);
       deleteRunState(projectId);

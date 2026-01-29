@@ -89,13 +89,21 @@ export async function runDemoMode(projectId: string): Promise<void> {
     });
 
     // Create run state
-    const runState = {
+    const runState: {
+      projectId: string;
+      phase: 'scraping' | 'enriching' | 'completed';
+      scrollPosition: number;
+      scrapedCount: number;
+      enrichedCount: number;
+      pendingEnrichmentIds: string[];
+      startedAt: string;
+    } = {
       projectId,
-      phase: 'scraping' as const,
+      phase: 'scraping',
       scrollPosition: 0,
       scrapedCount: 0,
       enrichedCount: 0,
-      pendingEnrichmentIds: [] as string[],
+      pendingEnrichmentIds: [],
       startedAt: new Date().toISOString(),
     };
     saveRunState(runState);

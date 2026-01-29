@@ -2,7 +2,7 @@
   "name": "lead-harvester",
   "version": "1.0.0",
   "description": "Local-first desktop tool for extracting business leads from Google Maps",
-  "main": "dist/main/index.js",
+  "main": "dist/main/main/index.js",
   "author": "LeadHarvester",
   "license": "MIT",
   "scripts": {
