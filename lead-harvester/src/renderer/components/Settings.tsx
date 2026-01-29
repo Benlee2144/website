@@ -14,8 +14,13 @@ export default function Settings() {
     }
   }, [settings]);
 
-  const handleChange = (key: string, value: any) => {
+  const handleChange = async (key: string, value: any) => {
     setLocalSettings((prev) => (prev ? { ...prev, [key]: value } : null));
+
+    // Auto-save theme changes immediately for instant feedback
+    if (key === 'theme') {
+      await update({ theme: value });
+    }
   };
 
   const handleSave = async () => {
@@ -66,8 +71,8 @@ export default function Settings() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="drag-region h-12 flex items-center justify-between px-6 border-b border-gray-200 bg-white">
-        <h1 className="no-drag text-lg font-semibold text-gray-900">Settings</h1>
+      <div className="drag-region h-12 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800">
+        <h1 className="no-drag text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
         <div className="no-drag flex items-center gap-2">
           {saved && <span className="text-green-600 text-sm">Saved!</span>}
           <button onClick={handleReset} className="btn-secondary btn-sm">
@@ -84,14 +89,14 @@ export default function Settings() {
         <div className="max-w-2xl space-y-8">
           {/* Scraping Settings */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Scraping Settings</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Scraping Settings</h2>
 
             {/* Safe Mode */}
             <div className="mb-6">
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="font-medium text-gray-900">Safe Mode</span>
-                  <p className="text-sm text-gray-500">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">Safe Mode</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Slower scraping with more delays to reduce detection risk
                   </p>
                 </div>
@@ -178,7 +183,7 @@ export default function Settings() {
 
           {/* Default Settings */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Default Project Settings</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Default Project Settings</h2>
 
             {/* Default max results */}
             <div>
@@ -274,8 +279,8 @@ export default function Settings() {
 
           {/* About */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">About</h2>
-            <div className="space-y-2 text-sm text-gray-600">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">About</h2>
+            <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
               <p>
                 <strong>LeadHarvester</strong> is a local-first desktop application for
                 extracting business leads from Google Maps.
