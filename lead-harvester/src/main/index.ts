@@ -9,6 +9,8 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin';
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -20,7 +22,8 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: false,
     },
-    titleBarStyle: 'hiddenInset',
+    // Use hiddenInset on macOS for native look, standard frame on Windows
+    ...(isMac ? { titleBarStyle: 'hiddenInset' } : { frame: true }),
     show: false,
   });
 
