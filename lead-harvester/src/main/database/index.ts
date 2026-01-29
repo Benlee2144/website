@@ -3,7 +3,7 @@ import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { SCHEMA, INITIAL_SETTINGS } from './schema';
+import { SCHEMA_TABLES, INITIAL_SETTINGS } from './schema';
 import type {
   Project,
   Lead,
@@ -46,18 +46,21 @@ export function initDatabase(): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  // Run schema (for new databases)
-  db.exec(SCHEMA);
-  db.exec(INITIAL_SETTINGS);
+  // 1. Run base schema (tables with original columns only)
+  db.exec(SCHEMA_TABLES);
 
-  // Run migrations for existing databases
+  // 2. Run migrations to add new columns to existing databases
   runMigrations(db);
+
+  // 3. Insert initial settings (after migrations add new settings columns)
+  db.exec(INITIAL_SETTINGS);
 
   return db;
 }
 
 /**
  * Run database migrations for existing databases
+ * This adds new columns and indexes that weren't in the original schema
  */
 function runMigrations(db: Database.Database): void {
   // Helper to safely add column if it doesn't exist
@@ -66,11 +69,20 @@ function runMigrations(db: Database.Database): void {
       const defaultClause = defaultValue !== undefined ? ` DEFAULT ${defaultValue}` : '';
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`);
     } catch (e) {
-      // Column already exists, ignore
+      // Column already exists, ignore error
     }
   };
 
-  // Leads table migrations
+  // Helper to safely create index
+  const createIndexIfNotExists = (indexName: string, table: string, column: string) => {
+    try {
+      db.exec(`CREATE INDEX IF NOT EXISTS ${indexName} ON ${table}(${column})`);
+    } catch (e) {
+      // Index creation failed, ignore
+    }
+  };
+
+  // Leads table migrations - add new columns
   addColumnIfNotExists('leads', 'lead_status', 'TEXT', "'new'");
   addColumnIfNotExists('leads', 'notes', 'TEXT', 'NULL');
   addColumnIfNotExists('leads', 'follow_up_date', 'TEXT', 'NULL');
@@ -81,7 +93,7 @@ function runMigrations(db: Database.Database): void {
   addColumnIfNotExists('leads', 'longitude', 'REAL', 'NULL');
   addColumnIfNotExists('leads', 'review_sentiment', 'TEXT', 'NULL');
 
-  // Settings table migrations
+  // Settings table migrations - add new columns
   addColumnIfNotExists('settings', 'auto_backup_enabled', 'INTEGER', '1');
   addColumnIfNotExists('settings', 'auto_backup_interval', 'INTEGER', '24');
   addColumnIfNotExists('settings', 'max_backups', 'INTEGER', '7');
@@ -89,14 +101,9 @@ function runMigrations(db: Database.Database): void {
   addColumnIfNotExists('settings', 'extract_business_hours', 'INTEGER', '1');
   addColumnIfNotExists('settings', 'detect_contact_forms', 'INTEGER', '1');
 
-  // Create new tables if they don't exist (handled by SCHEMA, but ensure indexes)
-  try {
-    db.exec('CREATE INDEX IF NOT EXISTS idx_leads_lead_status ON leads(lead_status)');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_leads_follow_up_date ON leads(follow_up_date)');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_id ON lead_notes(lead_id)');
-  } catch (e) {
-    // Indexes might already exist
-  }
+  // Create indexes on new columns (after columns are added)
+  createIndexIfNotExists('idx_leads_lead_status', 'leads', 'lead_status');
+  createIndexIfNotExists('idx_leads_follow_up_date', 'leads', 'follow_up_date');
 }
 
 export function getDatabase(): Database.Database {

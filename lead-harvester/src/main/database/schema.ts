@@ -1,6 +1,7 @@
 // SQL schema for LeadHarvester database
 
-export const SCHEMA = `
+// Tables only - no indexes that depend on new columns
+export const SCHEMA_TABLES = `
 -- Projects table
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
@@ -15,7 +16,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status TEXT NOT NULL DEFAULT 'idle'
 );
 
--- Leads table
+-- Leads table (base columns only - new columns added by migration)
 CREATE TABLE IF NOT EXISTS leads (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
@@ -35,15 +36,6 @@ CREATE TABLE IF NOT EXISTS leads (
   enrichment_status TEXT NOT NULL DEFAULT 'pending',
   error_message TEXT,
   is_duplicate INTEGER NOT NULL DEFAULT 0,
-  lead_status TEXT NOT NULL DEFAULT 'new',
-  notes TEXT,
-  follow_up_date TEXT,
-  social_media TEXT,
-  business_hours TEXT,
-  has_contact_form INTEGER,
-  latitude REAL,
-  longitude REAL,
-  review_sentiment TEXT,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
@@ -74,7 +66,7 @@ CREATE TABLE IF NOT EXISTS logs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
--- Settings table (single row)
+-- Settings table (base columns only - new columns added by migration)
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   safe_mode INTEGER NOT NULL DEFAULT 1,
@@ -84,13 +76,7 @@ CREATE TABLE IF NOT EXISTS settings (
   website_crawl_timeout INTEGER NOT NULL DEFAULT 15000,
   user_agent TEXT NOT NULL,
   show_onboarding INTEGER NOT NULL DEFAULT 1,
-  theme TEXT NOT NULL DEFAULT 'system',
-  auto_backup_enabled INTEGER NOT NULL DEFAULT 1,
-  auto_backup_interval INTEGER NOT NULL DEFAULT 24,
-  max_backups INTEGER NOT NULL DEFAULT 7,
-  extract_social_media INTEGER NOT NULL DEFAULT 1,
-  extract_business_hours INTEGER NOT NULL DEFAULT 1,
-  detect_contact_forms INTEGER NOT NULL DEFAULT 1
+  theme TEXT NOT NULL DEFAULT 'system'
 );
 
 -- Search templates table
@@ -148,12 +134,10 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   verified_at TEXT
 );
 
--- Indexes for performance
+-- Base indexes (only on columns that exist in base schema)
 CREATE INDEX IF NOT EXISTS idx_leads_project_id ON leads(project_id);
 CREATE INDEX IF NOT EXISTS idx_leads_enrichment_status ON leads(enrichment_status);
 CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score);
-CREATE INDEX IF NOT EXISTS idx_leads_lead_status ON leads(lead_status);
-CREATE INDEX IF NOT EXISTS idx_leads_follow_up_date ON leads(follow_up_date);
 CREATE INDEX IF NOT EXISTS idx_logs_project_id ON logs(project_id);
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_lead_tags_lead_id ON lead_tags(lead_id);
@@ -161,16 +145,17 @@ CREATE INDEX IF NOT EXISTS idx_lead_tags_tag_id ON lead_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_id ON lead_notes(lead_id);
 `;
 
+// Keep SCHEMA as alias for backwards compatibility
+export const SCHEMA = SCHEMA_TABLES;
+
 export const INITIAL_SETTINGS = `
 INSERT OR IGNORE INTO settings (
   id, safe_mode, concurrency, delay_between_actions,
-  max_results_default, website_crawl_timeout, user_agent, show_onboarding, theme,
-  auto_backup_enabled, auto_backup_interval, max_backups,
-  extract_social_media, extract_business_hours, detect_contact_forms
+  max_results_default, website_crawl_timeout, user_agent, show_onboarding, theme
 ) VALUES (
   1, 1, 1, 2000, 50, 15000,
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  1, 'system', 1, 24, 7, 1, 1, 1
+  1, 'system'
 );
 `;
 
