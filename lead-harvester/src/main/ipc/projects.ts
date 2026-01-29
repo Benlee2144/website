@@ -1,4 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   createProject,
   getProject,
@@ -23,11 +25,40 @@ import {
   addTagToLeads,
   removeTagFromLeads,
   deleteLeads,
+  updateLead,
+  createSearchTemplate,
+  getAllSearchTemplates,
+  getSearchTemplate,
+  deleteSearchTemplate,
+  createLeadNote,
+  getNotesForLead,
+  updateLeadNote,
+  deleteLeadNote,
+  getProjectStats,
+  getLeadsWithFollowUpDue,
+  getUpcomingFollowUps,
+  mergeProjects,
+  updateLeadStatuses,
+  importLeads,
 } from '../database';
 import { exportLeads, generateExportFilename } from '../utils/export';
 import { verifyEmail, verifyEmails } from '../utils/email-verification';
+import { createBackup, restoreBackup, deleteBackup, getBackupList } from '../utils/backup';
 import { ProjectSchema, LeadFiltersSchema } from '../../shared/schemas';
-import type { IpcResponse, Project, Lead, LeadFilters, LogEntry, Tag, VerifiedEmail } from '../../shared/types';
+import type {
+  IpcResponse,
+  Project,
+  Lead,
+  LeadFilters,
+  LogEntry,
+  Tag,
+  VerifiedEmail,
+  SearchTemplate,
+  LeadNote,
+  ProjectStats,
+  BackupInfo,
+  LeadStatus,
+} from '../../shared/types';
 
 /**
  * Broadcast project changes to all windows
@@ -436,4 +467,325 @@ export function registerProjectHandlers(): void {
       }
     }
   );
+
+  // ============= Lead Updates =============
+
+  // Update lead status
+  ipcMain.handle(
+    'leads:updateStatus',
+    async (_, leadId: string, status: LeadStatus): Promise<IpcResponse<Lead | null>> => {
+      try {
+        const lead = updateLead(leadId, { leadStatus: status });
+        return { success: true, data: lead };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // Update lead notes
+  ipcMain.handle(
+    'leads:updateNotes',
+    async (_, leadId: string, notes: string): Promise<IpcResponse<Lead | null>> => {
+      try {
+        const lead = updateLead(leadId, { notes: notes || null });
+        return { success: true, data: lead };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // Update follow-up date
+  ipcMain.handle(
+    'leads:updateFollowUp',
+    async (_, leadId: string, followUpDate: string | null): Promise<IpcResponse<Lead | null>> => {
+      try {
+        const lead = updateLead(leadId, { followUpDate });
+        return { success: true, data: lead };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // Bulk update lead statuses
+  ipcMain.handle(
+    'leads:bulkUpdateStatus',
+    async (_, leadIds: string[], status: LeadStatus): Promise<IpcResponse<number>> => {
+      try {
+        const count = updateLeadStatuses(leadIds, status);
+        return { success: true, data: count };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // ============= Search Templates =============
+
+  ipcMain.handle('templates:getAll', async (): Promise<IpcResponse<SearchTemplate[]>> => {
+    try {
+      const templates = getAllSearchTemplates();
+      return { success: true, data: templates };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle(
+    'templates:create',
+    async (_, input: { name: string; keyword: string; location: string; radius?: number; maxResults: number }): Promise<IpcResponse<SearchTemplate>> => {
+      try {
+        const template = createSearchTemplate(input);
+        return { success: true, data: template };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  ipcMain.handle('templates:delete', async (_, id: string): Promise<IpcResponse<boolean>> => {
+    try {
+      const result = deleteSearchTemplate(id);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // ============= Lead Notes =============
+
+  ipcMain.handle(
+    'notes:getForLead',
+    async (_, leadId: string): Promise<IpcResponse<LeadNote[]>> => {
+      try {
+        const notes = getNotesForLead(leadId);
+        return { success: true, data: notes };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'notes:create',
+    async (_, leadId: string, content: string): Promise<IpcResponse<LeadNote>> => {
+      try {
+        const note = createLeadNote(leadId, content);
+        return { success: true, data: note };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'notes:update',
+    async (_, noteId: string, content: string): Promise<IpcResponse<LeadNote | null>> => {
+      try {
+        const note = updateLeadNote(noteId, content);
+        return { success: true, data: note };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  ipcMain.handle('notes:delete', async (_, noteId: string): Promise<IpcResponse<boolean>> => {
+    try {
+      const result = deleteLeadNote(noteId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // ============= Statistics =============
+
+  ipcMain.handle(
+    'stats:getProject',
+    async (_, projectId: string): Promise<IpcResponse<ProjectStats>> => {
+      try {
+        const stats = getProjectStats(projectId);
+        return { success: true, data: stats };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // ============= Follow-up Reminders =============
+
+  ipcMain.handle('followups:getDue', async (): Promise<IpcResponse<Lead[]>> => {
+    try {
+      const leads = getLeadsWithFollowUpDue();
+      return { success: true, data: leads };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle(
+    'followups:getUpcoming',
+    async (_, days?: number): Promise<IpcResponse<Lead[]>> => {
+      try {
+        const leads = getUpcomingFollowUps(days || 7);
+        return { success: true, data: leads };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // ============= Backups =============
+
+  ipcMain.handle('backups:getAll', async (): Promise<IpcResponse<BackupInfo[]>> => {
+    try {
+      const backups = getBackupList();
+      return { success: true, data: backups };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('backups:create', async (): Promise<IpcResponse<BackupInfo | null>> => {
+    try {
+      const backup = createBackup();
+      return { success: true, data: backup };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('backups:restore', async (_, backupId: string): Promise<IpcResponse<boolean>> => {
+    try {
+      const result = restoreBackup(backupId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('backups:delete', async (_, backupId: string): Promise<IpcResponse<boolean>> => {
+    try {
+      const result = deleteBackup(backupId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // ============= Multi-Project Merge =============
+
+  ipcMain.handle(
+    'projects:merge',
+    async (_, sourceProjectIds: string[], targetProjectId: string): Promise<IpcResponse<number>> => {
+      try {
+        const count = mergeProjects(sourceProjectIds, targetProjectId);
+        broadcastProjectsChanged();
+        return { success: true, data: count };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+
+  // ============= Import CSV =============
+
+  ipcMain.handle(
+    'import:csv',
+    async (_, projectId: string): Promise<IpcResponse<{ imported: number; duplicates: number }>> => {
+      try {
+        const result = await dialog.showOpenDialog({
+          title: 'Import Leads from CSV',
+          filters: [{ name: 'CSV Files', extensions: ['csv'] }],
+          properties: ['openFile'],
+        });
+
+        if (result.canceled || !result.filePaths[0]) {
+          return { success: false, error: 'Import cancelled' };
+        }
+
+        const filePath = result.filePaths[0];
+        const content = fs.readFileSync(filePath, 'utf-8');
+
+        // Parse CSV
+        const lines = content.split('\n').filter(line => line.trim());
+        if (lines.length < 2) {
+          return { success: false, error: 'CSV file is empty or has no data rows' };
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        const leads: Array<{
+          businessName: string;
+          category?: string;
+          rating?: number;
+          reviewCount?: number;
+          address?: string;
+          phone?: string;
+          websiteUrl?: string;
+          emails?: string[];
+          googleMapsUrl?: string;
+        }> = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = parseCSVLine(lines[i]);
+          if (values.length < headers.length) continue;
+
+          const row: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            row[h] = values[idx]?.replace(/"/g, '').trim() || '';
+          });
+
+          const businessName = row['business_name'] || row['businessname'] || row['name'] || row['company'];
+          if (!businessName) continue;
+
+          leads.push({
+            businessName,
+            category: row['category'] || row['type'] || undefined,
+            rating: row['rating'] ? parseFloat(row['rating']) : undefined,
+            reviewCount: row['review_count'] || row['reviews'] ? parseInt(row['review_count'] || row['reviews']) : undefined,
+            address: row['address'] || row['location'] || undefined,
+            phone: row['phone'] || row['telephone'] || undefined,
+            websiteUrl: row['website'] || row['website_url'] || row['url'] || undefined,
+            emails: row['email'] || row['emails'] ? (row['email'] || row['emails']).split(';').filter(Boolean) : undefined,
+            googleMapsUrl: row['google_maps_url'] || row['maps_url'] || undefined,
+          });
+        }
+
+        if (leads.length === 0) {
+          return { success: false, error: 'No valid leads found in CSV' };
+        }
+
+        const importResult = importLeads(projectId, leads);
+        return { success: true, data: importResult };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    }
+  );
+}
+
+// Helper function to parse CSV line handling quoted values
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
 }

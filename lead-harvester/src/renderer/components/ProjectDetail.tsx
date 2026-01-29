@@ -1,24 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useAppState } from '../store';
-import { useProject, useScraper, useExport } from '../hooks/useIPC';
+import { useProject, useScraper, useExport, useProjectStats } from '../hooks/useIPC';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import RunDashboard from './RunDashboard';
 import LeadsTable from './LeadsTable';
 import LeadDetails from './LeadDetails';
 import LogViewer from './LogViewer';
+import { StatsDashboard } from './StatsDashboard';
+import { MapView } from './MapView';
 
-type Tab = 'leads' | 'logs';
+type Tab = 'leads' | 'logs' | 'stats' | 'map';
 
 export default function ProjectDetail() {
   const { state, dispatch } = useAppState();
   const { data: project, loading, error, refetch } = useProject(state.selectedProjectId);
   const { progress, status, start, pause, stop } = useScraper();
   const { exportCSV, loading: exporting } = useExport();
+  const { data: stats, loading: statsLoading } = useProjectStats(state.selectedProjectId);
   const [activeTab, setActiveTab] = useState<Tab>('leads');
   const [showDemoOption, setShowDemoOption] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const handleBack = () => {
     dispatch({ type: 'SELECT_PROJECT', projectId: null });
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onStartScrape: () => project && !status.isRunning && handleStart(false),
+    onPauseScrape: () => status.isRunning && handlePause(),
+    onExportLeads: () => project && handleExport(),
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSelection: () => dispatch({ type: 'SELECT_LEAD', leadId: null }),
+    onToggleDetails: () => {
+      if (state.selectedLeadId) {
+        dispatch({ type: 'SELECT_LEAD', leadId: null });
+      }
+    },
+  });
 
   const handleStart = async (demoMode: boolean = false) => {
     if (!project) return;
@@ -193,6 +212,26 @@ export default function ProjectDetail() {
             Leads ({project.totalLeads})
           </button>
           <button
+            onClick={() => setActiveTab('stats')}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stats'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Statistics
+          </button>
+          <button
+            onClick={() => setActiveTab('map')}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'map'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Map
+          </button>
+          <button
             onClick={() => setActiveTab('logs')}
             className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'logs'
@@ -207,7 +246,7 @@ export default function ProjectDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex">
-        {activeTab === 'leads' ? (
+        {activeTab === 'leads' && (
           <>
             <div className={`flex-1 overflow-hidden ${state.selectedLeadId ? 'hidden lg:block' : ''}`}>
               <LeadsTable projectId={project.id} onRefresh={refetch} />
@@ -218,7 +257,22 @@ export default function ProjectDetail() {
               </div>
             )}
           </>
-        ) : (
+        )}
+        {activeTab === 'stats' && (
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-4xl mx-auto">
+              <StatsDashboard stats={stats} loading={statsLoading} />
+            </div>
+          </div>
+        )}
+        {activeTab === 'map' && (
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-4xl mx-auto">
+              <MapView projectId={project.id} />
+            </div>
+          </div>
+        )}
+        {activeTab === 'logs' && (
           <div className="flex-1 overflow-hidden">
             <LogViewer projectId={project.id} />
           </div>

@@ -5,7 +5,7 @@ import { TaskQueue, delayWithJitter } from './task-queue';
 import { createScopedLogger } from '../utils/logger';
 import { calculateLeadScore } from '../utils/scoring';
 import { updateLead, getPendingEnrichmentLeads, saveRunState, getRunState, getDatabase } from '../database';
-import type { Lead, AppSettings, RunState } from '../../shared/types';
+import type { Lead, AppSettings, RunState, SocialMediaLinks } from '../../shared/types';
 
 const logger = createScopedLogger('Enrichment');
 
@@ -102,14 +102,231 @@ async function extractWebsiteFromGoogleMaps(
 }
 
 /**
+ * Extract business hours from Google Maps page
+ */
+async function extractBusinessHours(
+  page: Page,
+  googleMapsUrl: string,
+  settings: AppSettings
+): Promise<string | null> {
+  try {
+    // Check if we're already on the page
+    const currentUrl = page.url();
+    if (!currentUrl.includes(googleMapsUrl.substring(0, 50))) {
+      await page.goto(googleMapsUrl, {
+        timeout: settings.websiteCrawlTimeout,
+        waitUntil: 'domcontentloaded',
+      });
+      await delayWithJitter(settings.safeMode ? 2000 : 1000);
+    }
+
+    // Look for hours button and click it
+    const hoursButton = await page.$('[data-item-id="oh"]');
+    if (hoursButton) {
+      await hoursButton.click();
+      await delayWithJitter(500);
+    }
+
+    // Try to extract hours text
+    const hoursSelectors = [
+      '[aria-label*="hours"]',
+      '.section-open-hours-container',
+      '[data-item-id="oh"] + div',
+    ];
+
+    for (const selector of hoursSelectors) {
+      const element = await page.$(selector);
+      if (element) {
+        const text = await element.textContent();
+        if (text && text.length > 5) {
+          return text.trim();
+        }
+      }
+    }
+
+    // Fallback: get from aria-label
+    const ariaElement = await page.$('[aria-label*="Monday"], [aria-label*="Sunday"]');
+    if (ariaElement) {
+      const label = await ariaElement.getAttribute('aria-label');
+      if (label) return label;
+    }
+
+    return null;
+  } catch (error) {
+    logger.debug('Failed to extract business hours', { error: String(error) });
+    return null;
+  }
+}
+
+/**
+ * Extract latitude and longitude from Google Maps URL
+ */
+function extractCoordinates(googleMapsUrl: string): { latitude: number; longitude: number } | null {
+  try {
+    // Try @lat,lng format
+    const coordMatch = googleMapsUrl.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (coordMatch) {
+      return {
+        latitude: parseFloat(coordMatch[1]),
+        longitude: parseFloat(coordMatch[2]),
+      };
+    }
+
+    // Try !3d and !4d format
+    const latMatch = googleMapsUrl.match(/!3d(-?\d+\.?\d*)/);
+    const lngMatch = googleMapsUrl.match(/!4d(-?\d+\.?\d*)/);
+    if (latMatch && lngMatch) {
+      return {
+        latitude: parseFloat(latMatch[1]),
+        longitude: parseFloat(lngMatch[1]),
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract social media links from website
+ */
+async function extractSocialMedia(page: Page): Promise<SocialMediaLinks> {
+  const socialMedia: SocialMediaLinks = {};
+
+  try {
+    const links = await page.$$('a[href]');
+
+    for (const link of links) {
+      const href = await link.getAttribute('href');
+      if (!href) continue;
+
+      const lowerHref = href.toLowerCase();
+
+      if (lowerHref.includes('facebook.com') && !socialMedia.facebook) {
+        socialMedia.facebook = href;
+      } else if ((lowerHref.includes('instagram.com') || lowerHref.includes('instagr.am')) && !socialMedia.instagram) {
+        socialMedia.instagram = href;
+      } else if (lowerHref.includes('linkedin.com') && !socialMedia.linkedin) {
+        socialMedia.linkedin = href;
+      } else if ((lowerHref.includes('twitter.com') || lowerHref.includes('x.com')) && !socialMedia.twitter) {
+        socialMedia.twitter = href;
+      } else if (lowerHref.includes('youtube.com') && !socialMedia.youtube) {
+        socialMedia.youtube = href;
+      }
+    }
+  } catch (error) {
+    logger.debug('Failed to extract social media', { error: String(error) });
+  }
+
+  return socialMedia;
+}
+
+/**
+ * Detect if website has a contact form
+ */
+async function detectContactForm(page: Page): Promise<boolean> {
+  try {
+    // Look for form elements with contact-related attributes
+    const formSelectors = [
+      'form[action*="contact"]',
+      'form[action*="message"]',
+      'form[action*="inquiry"]',
+      'form[id*="contact"]',
+      'form[class*="contact"]',
+      'form[name*="contact"]',
+      '#contact-form',
+      '.contact-form',
+      '[data-form-type="contact"]',
+    ];
+
+    for (const selector of formSelectors) {
+      const form = await page.$(selector);
+      if (form) return true;
+    }
+
+    // Look for form with email input and textarea
+    const forms = await page.$$('form');
+    for (const form of forms) {
+      const emailInput = await form.$('input[type="email"], input[name*="email"]');
+      const textarea = await form.$('textarea');
+      if (emailInput && textarea) return true;
+    }
+
+    // Look for contact page indicators
+    const pageContent = await page.content();
+    const contactIndicators = [
+      'contact us',
+      'get in touch',
+      'send us a message',
+      'inquiry form',
+      'contact form',
+    ];
+
+    const lowerContent = pageContent.toLowerCase();
+    for (const indicator of contactIndicators) {
+      if (lowerContent.includes(indicator)) {
+        const form = await page.$('form');
+        if (form) return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    logger.debug('Failed to detect contact form', { error: String(error) });
+    return false;
+  }
+}
+
+/**
+ * Simple review sentiment analysis
+ */
+function analyzeReviewSentiment(rating?: number, reviewCount?: number): 'positive' | 'neutral' | 'negative' | null {
+  if (!rating) return null;
+
+  if (rating >= 4.5 && (reviewCount || 0) >= 10) {
+    return 'positive';
+  } else if (rating >= 3.5) {
+    return 'neutral';
+  } else if (rating < 3.0) {
+    return 'negative';
+  }
+
+  return 'neutral';
+}
+
+interface EnrichmentResult {
+  emails: string[];
+  contactPageUrl?: string;
+  websiteUrl?: string;
+  socialMedia?: SocialMediaLinks;
+  hasContactForm?: boolean;
+  businessHours?: string;
+  latitude?: number;
+  longitude?: number;
+  reviewSentiment?: 'positive' | 'neutral' | 'negative';
+}
+
+/**
  * Enrich a single lead with email and contact info
  */
 async function enrichLead(
   lead: Lead,
   page: Page,
   settings: AppSettings
-): Promise<{ emails: string[]; contactPageUrl?: string; websiteUrl?: string }> {
+): Promise<EnrichmentResult> {
   let websiteUrl = lead.websiteUrl;
+  const result: EnrichmentResult = { emails: [] };
+
+  // Extract coordinates from Google Maps URL
+  const coords = extractCoordinates(lead.googleMapsUrl);
+  if (coords) {
+    result.latitude = coords.latitude;
+    result.longitude = coords.longitude;
+  }
+
+  // Analyze review sentiment
+  result.reviewSentiment = analyzeReviewSentiment(lead.rating, lead.reviewCount) || undefined;
 
   // If no website URL, try to get it from Google Maps
   if (!websiteUrl && lead.googleMapsUrl) {
@@ -117,23 +334,43 @@ async function enrichLead(
     websiteUrl = await extractWebsiteFromGoogleMaps(page, lead.googleMapsUrl, settings) || undefined;
   }
 
+  // Extract business hours if enabled
+  if (settings.extractBusinessHours && lead.googleMapsUrl) {
+    result.businessHours = await extractBusinessHours(page, lead.googleMapsUrl, settings) || undefined;
+  }
+
   if (!websiteUrl) {
     logger.info(`No website found for: ${lead.businessName}`);
-    return { emails: [], websiteUrl: undefined };
+    result.websiteUrl = undefined;
+    return result;
   }
 
   logger.info(`Enriching: ${lead.businessName}`);
+  result.websiteUrl = websiteUrl;
 
   // Mark as in progress
   updateLead(lead.id, { enrichmentStatus: 'in_progress' });
 
   try {
-    const result = await extractEmailsFromWebsite(page, websiteUrl, {
+    const emailResult = await extractEmailsFromWebsite(page, websiteUrl, {
       maxPages: 6,
       timeout: settings.websiteCrawlTimeout,
     });
 
-    return { ...result, websiteUrl };
+    result.emails = emailResult.emails;
+    result.contactPageUrl = emailResult.contactPageUrl;
+
+    // Extract social media if enabled
+    if (settings.extractSocialMedia) {
+      result.socialMedia = await extractSocialMedia(page);
+    }
+
+    // Detect contact form if enabled
+    if (settings.detectContactForms) {
+      result.hasContactForm = await detectContactForm(page);
+    }
+
+    return result;
   } catch (error) {
     logger.error(`Failed to enrich ${lead.businessName}`, { error: String(error) });
     throw error;
@@ -202,6 +439,12 @@ export async function runEnrichment(
             leadScore: score,
             enrichmentStatus: 'done',
             errorMessage: null,
+            socialMedia: result.socialMedia || null,
+            hasContactForm: result.hasContactForm ?? null,
+            businessHours: result.businessHours || null,
+            latitude: result.latitude || null,
+            longitude: result.longitude || null,
+            reviewSentiment: result.reviewSentiment || null,
           });
 
           enrichedCount++;

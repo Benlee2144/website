@@ -9,6 +9,11 @@ import type {
   IpcResponse,
   Tag,
   VerifiedEmail,
+  SearchTemplate,
+  LeadNote,
+  ProjectStats,
+  BackupInfo,
+  LeadStatus,
 } from '../shared/types';
 
 // Type-safe API for renderer
@@ -42,6 +47,14 @@ const api = {
     getByProject: (projectId: string, filters?: LeadFilters): Promise<IpcResponse<Lead[]>> =>
       ipcRenderer.invoke('leads:getByProject', projectId, filters),
     get: (id: string): Promise<IpcResponse<Lead | null>> => ipcRenderer.invoke('leads:get', id),
+    updateStatus: (leadId: string, status: LeadStatus): Promise<IpcResponse<Lead | null>> =>
+      ipcRenderer.invoke('leads:updateStatus', leadId, status),
+    updateNotes: (leadId: string, notes: string): Promise<IpcResponse<Lead | null>> =>
+      ipcRenderer.invoke('leads:updateNotes', leadId, notes),
+    updateFollowUp: (leadId: string, followUpDate: string | null): Promise<IpcResponse<Lead | null>> =>
+      ipcRenderer.invoke('leads:updateFollowUp', leadId, followUpDate),
+    bulkUpdateStatus: (leadIds: string[], status: LeadStatus): Promise<IpcResponse<number>> =>
+      ipcRenderer.invoke('leads:bulkUpdateStatus', leadIds, status),
   },
 
   // Scraper
@@ -140,6 +153,66 @@ const api = {
       ipcRenderer.invoke('email:verify', email),
     verifyBulk: (emails: string[]): Promise<IpcResponse<VerifiedEmail[]>> =>
       ipcRenderer.invoke('email:verifyBulk', emails),
+  },
+
+  // Search templates
+  templates: {
+    getAll: (): Promise<IpcResponse<SearchTemplate[]>> =>
+      ipcRenderer.invoke('templates:getAll'),
+    create: (input: { name: string; keyword: string; location: string; radius?: number; maxResults: number }): Promise<IpcResponse<SearchTemplate>> =>
+      ipcRenderer.invoke('templates:create', input),
+    delete: (id: string): Promise<IpcResponse<boolean>> =>
+      ipcRenderer.invoke('templates:delete', id),
+  },
+
+  // Lead notes
+  notes: {
+    getForLead: (leadId: string): Promise<IpcResponse<LeadNote[]>> =>
+      ipcRenderer.invoke('notes:getForLead', leadId),
+    create: (leadId: string, content: string): Promise<IpcResponse<LeadNote>> =>
+      ipcRenderer.invoke('notes:create', leadId, content),
+    update: (noteId: string, content: string): Promise<IpcResponse<LeadNote | null>> =>
+      ipcRenderer.invoke('notes:update', noteId, content),
+    delete: (noteId: string): Promise<IpcResponse<boolean>> =>
+      ipcRenderer.invoke('notes:delete', noteId),
+  },
+
+  // Statistics
+  stats: {
+    getProject: (projectId: string): Promise<IpcResponse<ProjectStats>> =>
+      ipcRenderer.invoke('stats:getProject', projectId),
+  },
+
+  // Follow-up reminders
+  followups: {
+    getDue: (): Promise<IpcResponse<Lead[]>> =>
+      ipcRenderer.invoke('followups:getDue'),
+    getUpcoming: (days?: number): Promise<IpcResponse<Lead[]>> =>
+      ipcRenderer.invoke('followups:getUpcoming', days),
+  },
+
+  // Backups
+  backups: {
+    getAll: (): Promise<IpcResponse<BackupInfo[]>> =>
+      ipcRenderer.invoke('backups:getAll'),
+    create: (): Promise<IpcResponse<BackupInfo | null>> =>
+      ipcRenderer.invoke('backups:create'),
+    restore: (backupId: string): Promise<IpcResponse<boolean>> =>
+      ipcRenderer.invoke('backups:restore', backupId),
+    delete: (backupId: string): Promise<IpcResponse<boolean>> =>
+      ipcRenderer.invoke('backups:delete', backupId),
+  },
+
+  // Import
+  import: {
+    csv: (projectId: string): Promise<IpcResponse<{ imported: number; duplicates: number }>> =>
+      ipcRenderer.invoke('import:csv', projectId),
+  },
+
+  // Project merge
+  merge: {
+    projects: (sourceProjectIds: string[], targetProjectId: string): Promise<IpcResponse<number>> =>
+      ipcRenderer.invoke('projects:merge', sourceProjectIds, targetProjectId),
   },
 };
 

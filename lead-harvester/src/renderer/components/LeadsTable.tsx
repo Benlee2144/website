@@ -1,15 +1,23 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAppState } from '../store';
-import { useLeads, useTags } from '../hooks/useIPC';
-import type { Lead, LeadFilters, Tag, VerifiedEmail } from '../../shared/types';
+import { useLeads, useTags, useLeadOperations, useImport } from '../hooks/useIPC';
+import type { Lead, LeadFilters, Tag, VerifiedEmail, LeadStatus } from '../../shared/types';
 
 interface LeadsTableProps {
   projectId: string;
   onRefresh: () => void;
 }
 
-type SortField = 'businessName' | 'rating' | 'reviewCount' | 'leadScore' | 'enrichmentStatus';
+type SortField = 'businessName' | 'rating' | 'reviewCount' | 'leadScore' | 'enrichmentStatus' | 'leadStatus';
 type SortDirection = 'asc' | 'desc';
+
+const LEAD_STATUS_OPTIONS: { value: LeadStatus; label: string; color: string }[] = [
+  { value: 'new', label: 'New', color: 'bg-blue-100 text-blue-800' },
+  { value: 'contacted', label: 'Contacted', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'interested', label: 'Interested', color: 'bg-purple-100 text-purple-800' },
+  { value: 'won', label: 'Won', color: 'bg-green-100 text-green-800' },
+  { value: 'lost', label: 'Lost', color: 'bg-red-100 text-red-800' },
+];
 
 const TAG_COLORS = [
   '#3B82F6', // blue
@@ -32,10 +40,13 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [emailVerifications, setEmailVerifications] = useState<Map<string, VerifiedEmail>>(new Map());
   const [verifyingEmails, setVerifyingEmails] = useState(false);
 
   const { data: tags, refetch: refetchTags } = useTags();
+  const { updateStatus, bulkUpdateStatus } = useLeadOperations();
+  const { importCSV, loading: importLoading } = useImport();
 
   // Build filters
   const filters: LeadFilters = useMemo(() => ({
@@ -75,6 +86,9 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
           break;
         case 'enrichmentStatus':
           comparison = a.enrichmentStatus.localeCompare(b.enrichmentStatus);
+          break;
+        case 'leadStatus':
+          comparison = (a.leadStatus || 'new').localeCompare(b.leadStatus || 'new');
           break;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
@@ -180,6 +194,45 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
     } finally {
       setVerifyingEmails(false);
     }
+  };
+
+  const handleBulkStatusUpdate = async (status: LeadStatus) => {
+    if (selectedLeadIds.size === 0) return;
+
+    const result = await bulkUpdateStatus(Array.from(selectedLeadIds), status);
+    if (result.success) {
+      setShowStatusMenu(false);
+      refetch();
+    }
+  };
+
+  const handleSingleStatusUpdate = async (leadId: string, status: LeadStatus, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const result = await updateStatus(leadId, status);
+    if (result.success) {
+      refetch();
+    }
+  };
+
+  const handleImportCSV = async () => {
+    const result = await importCSV(projectId);
+    if (result.success && result.data) {
+      alert(`Imported ${result.data.imported} leads. ${result.data.duplicates} duplicates skipped.`);
+      refetch();
+      onRefresh();
+    } else if (result.error) {
+      alert(`Import failed: ${result.error}`);
+    }
+  };
+
+  const getLeadStatusBadge = (status: LeadStatus) => {
+    const option = LEAD_STATUS_OPTIONS.find(o => o.value === status);
+    if (!option) return null;
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${option.color}`}>
+        {option.label}
+      </span>
+    );
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -319,6 +372,17 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
             <option value="100">100+ Reviews</option>
           </select>
 
+          <select
+            className="filter-select"
+            value={state.leadFilters.leadStatus || ''}
+            onChange={(e) => handleFilterChange('leadStatus', e.target.value || undefined)}
+          >
+            <option value="">Any Status</option>
+            {LEAD_STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+
           {/* Score range filter */}
           <div className="flex items-center gap-1">
             <input
@@ -428,6 +492,29 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   </div>
                 )}
               </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowStatusMenu(!showStatusMenu)}
+                  className="btn-sm btn-secondary"
+                >
+                  Set Status
+                </button>
+                {showStatusMenu && (
+                  <div className="absolute top-full left-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                    {LEAD_STATUS_OPTIONS.map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleBulkStatusUpdate(option.value)}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className={`px-2 py-0.5 rounded text-xs ${option.color}`}>
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleVerifyEmails}
                 className="btn-sm btn-secondary"
@@ -524,7 +611,13 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('enrichmentStatus')}
                 >
-                  Status <SortIcon field="enrichmentStatus" />
+                  Enrichment <SortIcon field="enrichmentStatus" />
+                </th>
+                <th
+                  className="cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('leadStatus')}
+                >
+                  Pipeline <SortIcon field="leadStatus" />
                 </th>
               </tr>
             </thead>
@@ -584,6 +677,17 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   </td>
                   <td>{getScoreBadge(lead.leadScore)}</td>
                   <td>{getStatusBadge(lead.enrichmentStatus)}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <select
+                      className="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white"
+                      value={lead.leadStatus}
+                      onChange={(e) => handleSingleStatusUpdate(lead.id, e.target.value as LeadStatus, e as any)}
+                    >
+                      {LEAD_STATUS_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -599,6 +703,13 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
         </span>
         {selectedLeadIds.size === 0 && (
           <div className="flex gap-2">
+            <button
+              onClick={handleImportCSV}
+              className="btn-sm btn-ghost"
+              disabled={importLoading}
+            >
+              {importLoading ? 'Importing...' : 'Import CSV'}
+            </button>
             <button
               onClick={() => handleBulkExport('csv')}
               className="btn-sm btn-ghost"

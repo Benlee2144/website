@@ -4,7 +4,7 @@ import type { Project, Lead, AppSettings, LeadFilters } from '../../shared/types
 // App state interface
 export interface AppState {
   // Navigation
-  currentView: 'projects' | 'project-detail' | 'settings';
+  currentView: 'projects' | 'project-detail' | 'settings' | 'stats' | 'followups' | 'templates';
   selectedProjectId: string | null;
   selectedLeadId: string | null;
 

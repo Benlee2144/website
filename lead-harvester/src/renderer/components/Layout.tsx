@@ -4,6 +4,9 @@ import Sidebar from './Sidebar';
 import ProjectList from './ProjectList';
 import ProjectDetail from './ProjectDetail';
 import Settings from './Settings';
+import StatsView from './StatsView';
+import FollowUpsView from './FollowUpsView';
+import TemplatesView from './TemplatesView';
 
 export default function Layout() {
   const { state } = useAppState();
@@ -16,6 +19,12 @@ export default function Layout() {
         return <ProjectDetail />;
       case 'settings':
         return <Settings />;
+      case 'stats':
+        return <StatsView />;
+      case 'followups':
+        return <FollowUpsView />;
+      case 'templates':
+        return <TemplatesView />;
       default:
         return <ProjectList />;
     }

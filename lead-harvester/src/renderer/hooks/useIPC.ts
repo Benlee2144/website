@@ -8,6 +8,11 @@ import type {
   ScrapeProgress,
   Tag,
   VerifiedEmail,
+  SearchTemplate,
+  LeadNote,
+  ProjectStats,
+  BackupInfo,
+  LeadStatus,
 } from '../../shared/types';
 
 // Generic hook for IPC calls with loading state
@@ -351,4 +356,237 @@ export function useEmailVerification() {
   }, []);
 
   return { verifyEmail, verifyEmails, loading };
+}
+
+// Lead status and notes hooks
+export function useLeadOperations() {
+  const [loading, setLoading] = useState(false);
+
+  const updateStatus = useCallback(async (leadId: string, status: LeadStatus) => {
+    setLoading(true);
+    try {
+      const result = await window.api.leads.updateStatus(leadId, status);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateNotes = useCallback(async (leadId: string, notes: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.leads.updateNotes(leadId, notes);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateFollowUp = useCallback(async (leadId: string, followUpDate: string | null) => {
+    setLoading(true);
+    try {
+      const result = await window.api.leads.updateFollowUp(leadId, followUpDate);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const bulkUpdateStatus = useCallback(async (leadIds: string[], status: LeadStatus) => {
+    setLoading(true);
+    try {
+      const result = await window.api.leads.bulkUpdateStatus(leadIds, status);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { updateStatus, updateNotes, updateFollowUp, bulkUpdateStatus, loading };
+}
+
+// Search templates hooks
+export function useSearchTemplates() {
+  const query = useIPCQuery(() => window.api.templates.getAll(), []);
+
+  const createTemplate = useCallback(async (input: {
+    name: string;
+    keyword: string;
+    location: string;
+    radius?: number;
+    maxResults: number;
+  }) => {
+    const result = await window.api.templates.create(input);
+    if (result.success) {
+      query.refetch();
+    }
+    return result;
+  }, [query.refetch]);
+
+  const deleteTemplate = useCallback(async (id: string) => {
+    const result = await window.api.templates.delete(id);
+    if (result.success) {
+      query.refetch();
+    }
+    return result;
+  }, [query.refetch]);
+
+  return { ...query, createTemplate, deleteTemplate };
+}
+
+// Lead notes hooks
+export function useLeadNotes(leadId: string | null) {
+  const query = useIPCQuery(
+    () => leadId
+      ? window.api.notes.getForLead(leadId)
+      : Promise.resolve({ success: true, data: [] as LeadNote[] }),
+    [leadId]
+  );
+
+  const createNote = useCallback(async (content: string) => {
+    if (!leadId) return null;
+    const result = await window.api.notes.create(leadId, content);
+    if (result.success) {
+      query.refetch();
+    }
+    return result;
+  }, [leadId, query.refetch]);
+
+  const updateNote = useCallback(async (noteId: string, content: string) => {
+    const result = await window.api.notes.update(noteId, content);
+    if (result.success) {
+      query.refetch();
+    }
+    return result;
+  }, [query.refetch]);
+
+  const deleteNote = useCallback(async (noteId: string) => {
+    const result = await window.api.notes.delete(noteId);
+    if (result.success) {
+      query.refetch();
+    }
+    return result;
+  }, [query.refetch]);
+
+  return { ...query, createNote, updateNote, deleteNote };
+}
+
+// Project statistics hook
+export function useProjectStats(projectId: string | null) {
+  return useIPCQuery(
+    () => projectId
+      ? window.api.stats.getProject(projectId)
+      : Promise.resolve({ success: true, data: null as ProjectStats | null }),
+    [projectId]
+  );
+}
+
+// Follow-up reminders hook
+export function useFollowUps() {
+  const [dueLeads, setDueLeads] = useState<Lead[]>([]);
+  const [upcomingLeads, setUpcomingLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [dueResult, upcomingResult] = await Promise.all([
+        window.api.followups.getDue(),
+        window.api.followups.getUpcoming(7),
+      ]);
+
+      if (dueResult.success && dueResult.data) {
+        setDueLeads(dueResult.data);
+      }
+      if (upcomingResult.success && upcomingResult.data) {
+        setUpcomingLeads(upcomingResult.data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { dueLeads, upcomingLeads, loading, refetch };
+}
+
+// Backups hook
+export function useBackups() {
+  const query = useIPCQuery(() => window.api.backups.getAll(), []);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const createBackup = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      const result = await window.api.backups.create();
+      if (result.success) {
+        query.refetch();
+      }
+      return result;
+    } finally {
+      setActionLoading(false);
+    }
+  }, [query.refetch]);
+
+  const restoreBackup = useCallback(async (backupId: string) => {
+    setActionLoading(true);
+    try {
+      const result = await window.api.backups.restore(backupId);
+      return result;
+    } finally {
+      setActionLoading(false);
+    }
+  }, []);
+
+  const deleteBackup = useCallback(async (backupId: string) => {
+    setActionLoading(true);
+    try {
+      const result = await window.api.backups.delete(backupId);
+      if (result.success) {
+        query.refetch();
+      }
+      return result;
+    } finally {
+      setActionLoading(false);
+    }
+  }, [query.refetch]);
+
+  return { ...query, createBackup, restoreBackup, deleteBackup, actionLoading };
+}
+
+// Import hook
+export function useImport() {
+  const [loading, setLoading] = useState(false);
+
+  const importCSV = useCallback(async (projectId: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.import.csv(projectId);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { importCSV, loading };
+}
+
+// Project merge hook
+export function useMergeProjects() {
+  const [loading, setLoading] = useState(false);
+
+  const mergeProjects = useCallback(async (sourceProjectIds: string[], targetProjectId: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.merge.projects(sourceProjectIds, targetProjectId);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { mergeProjects, loading };
 }

@@ -16,6 +16,9 @@ export interface Project {
 
 export type ProjectStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error';
 
+// Lead status for pipeline
+export type LeadStatus = 'new' | 'contacted' | 'interested' | 'won' | 'lost';
+
 // Lead types
 export interface Lead {
   id: string;
@@ -36,6 +39,25 @@ export interface Lead {
   enrichmentStatus: EnrichmentStatus;
   errorMessage?: string;
   isDuplicate: boolean;
+  // New fields for features
+  leadStatus: LeadStatus;
+  notes?: string;
+  followUpDate?: string;
+  socialMedia?: SocialMediaLinks;
+  businessHours?: string;
+  hasContactForm?: boolean;
+  latitude?: number;
+  longitude?: number;
+  reviewSentiment?: 'positive' | 'neutral' | 'negative';
+}
+
+// Social media links
+export interface SocialMediaLinks {
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  twitter?: string;
+  youtube?: string;
 }
 
 export type EnrichmentStatus = 'pending' | 'in_progress' | 'done' | 'error' | 'skipped';
@@ -67,6 +89,12 @@ export interface AppSettings {
   userAgent: string;
   showOnboarding: boolean;
   theme: ThemeMode;
+  autoBackupEnabled: boolean;
+  autoBackupInterval: number; // hours
+  maxBackups: number;
+  extractSocialMedia: boolean;
+  extractBusinessHours: boolean;
+  detectContactForms: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -78,6 +106,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   showOnboarding: true,
   theme: 'system',
+  autoBackupEnabled: true,
+  autoBackupInterval: 24, // daily
+  maxBackups: 7,
+  extractSocialMedia: true,
+  extractBusinessHours: true,
+  detectContactForms: true,
 };
 
 export const USER_AGENTS = [
@@ -107,6 +141,51 @@ export interface LeadFilters {
   showDuplicates?: boolean;
   opportunityFinder?: boolean;
   searchQuery?: string;
+  leadStatus?: LeadStatus;
+  hasFollowUp?: boolean;
+  hasSocialMedia?: boolean;
+}
+
+// Search template for saved searches
+export interface SearchTemplate {
+  id: string;
+  name: string;
+  keyword: string;
+  location: string;
+  radius?: number;
+  maxResults: number;
+  createdAt: string;
+}
+
+// Lead note/comment
+export interface LeadNote {
+  id: string;
+  leadId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Statistics for dashboard
+export interface ProjectStats {
+  totalLeads: number;
+  leadsWithEmail: number;
+  leadsWithWebsite: number;
+  leadsWithPhone: number;
+  enrichedLeads: number;
+  leadsByStatus: Record<LeadStatus, number>;
+  avgRating: number;
+  avgReviewCount: number;
+  leadsByCategory: Record<string, number>;
+  leadsOverTime: { date: string; count: number }[];
+}
+
+// Backup info
+export interface BackupInfo {
+  id: string;
+  filename: string;
+  createdAt: string;
+  size: number;
 }
 
 // Progress info for UI
@@ -183,4 +262,28 @@ export interface ExtendedLeadFilters extends LeadFilters {
   maxScore?: number;
   tags?: string[];
   emailStatus?: EmailVerificationStatus;
+  reviewSentiment?: 'positive' | 'neutral' | 'negative';
 }
+
+// Keyboard shortcuts
+export interface KeyboardShortcut {
+  key: string;
+  action: string;
+  description: string;
+}
+
+export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
+  { key: 'n', action: 'newProject', description: 'New Project' },
+  { key: 's', action: 'startScrape', description: 'Start Scrape' },
+  { key: 'p', action: 'pauseScrape', description: 'Pause Scrape' },
+  { key: 'e', action: 'exportLeads', description: 'Export Leads' },
+  { key: 'f', action: 'focusSearch', description: 'Focus Search' },
+  { key: 'Escape', action: 'clearSelection', description: 'Clear Selection' },
+  { key: 'a', action: 'selectAll', description: 'Select All (with Ctrl/Cmd)' },
+  { key: 'd', action: 'toggleDetails', description: 'Toggle Details Panel' },
+  { key: '1', action: 'statusNew', description: 'Set Status: New' },
+  { key: '2', action: 'statusContacted', description: 'Set Status: Contacted' },
+  { key: '3', action: 'statusInterested', description: 'Set Status: Interested' },
+  { key: '4', action: 'statusWon', description: 'Set Status: Won' },
+  { key: '5', action: 'statusLost', description: 'Set Status: Lost' },
+];

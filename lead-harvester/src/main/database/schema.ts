@@ -35,6 +35,15 @@ CREATE TABLE IF NOT EXISTS leads (
   enrichment_status TEXT NOT NULL DEFAULT 'pending',
   error_message TEXT,
   is_duplicate INTEGER NOT NULL DEFAULT 0,
+  lead_status TEXT NOT NULL DEFAULT 'new',
+  notes TEXT,
+  follow_up_date TEXT,
+  social_media TEXT,
+  business_hours TEXT,
+  has_contact_form INTEGER,
+  latitude REAL,
+  longitude REAL,
+  review_sentiment TEXT,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
@@ -75,7 +84,42 @@ CREATE TABLE IF NOT EXISTS settings (
   website_crawl_timeout INTEGER NOT NULL DEFAULT 15000,
   user_agent TEXT NOT NULL,
   show_onboarding INTEGER NOT NULL DEFAULT 1,
-  theme TEXT NOT NULL DEFAULT 'system'
+  theme TEXT NOT NULL DEFAULT 'system',
+  auto_backup_enabled INTEGER NOT NULL DEFAULT 1,
+  auto_backup_interval INTEGER NOT NULL DEFAULT 24,
+  max_backups INTEGER NOT NULL DEFAULT 7,
+  extract_social_media INTEGER NOT NULL DEFAULT 1,
+  extract_business_hours INTEGER NOT NULL DEFAULT 1,
+  detect_contact_forms INTEGER NOT NULL DEFAULT 1
+);
+
+-- Search templates table
+CREATE TABLE IF NOT EXISTS search_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  keyword TEXT NOT NULL,
+  location TEXT NOT NULL,
+  radius INTEGER,
+  max_results INTEGER NOT NULL DEFAULT 50,
+  created_at TEXT NOT NULL
+);
+
+-- Lead notes table
+CREATE TABLE IF NOT EXISTS lead_notes (
+  id TEXT PRIMARY KEY,
+  lead_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+);
+
+-- Backups table
+CREATE TABLE IF NOT EXISTS backups (
+  id TEXT PRIMARY KEY,
+  filename TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  size INTEGER NOT NULL
 );
 
 -- Tags table
@@ -108,19 +152,33 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 CREATE INDEX IF NOT EXISTS idx_leads_project_id ON leads(project_id);
 CREATE INDEX IF NOT EXISTS idx_leads_enrichment_status ON leads(enrichment_status);
 CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score);
+CREATE INDEX IF NOT EXISTS idx_leads_lead_status ON leads(lead_status);
+CREATE INDEX IF NOT EXISTS idx_leads_follow_up_date ON leads(follow_up_date);
 CREATE INDEX IF NOT EXISTS idx_logs_project_id ON logs(project_id);
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_lead_tags_lead_id ON lead_tags(lead_id);
 CREATE INDEX IF NOT EXISTS idx_lead_tags_tag_id ON lead_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_id ON lead_notes(lead_id);
 `;
 
 export const INITIAL_SETTINGS = `
 INSERT OR IGNORE INTO settings (
   id, safe_mode, concurrency, delay_between_actions,
-  max_results_default, website_crawl_timeout, user_agent, show_onboarding, theme
+  max_results_default, website_crawl_timeout, user_agent, show_onboarding, theme,
+  auto_backup_enabled, auto_backup_interval, max_backups,
+  extract_social_media, extract_business_hours, detect_contact_forms
 ) VALUES (
   1, 1, 1, 2000, 50, 15000,
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  1, 'system'
+  1, 'system', 1, 24, 7, 1, 1, 1
 );
+`;
+
+// Migration for existing databases
+export const MIGRATIONS = `
+-- Add new columns to leads if they don't exist (SQLite doesn't have IF NOT EXISTS for columns)
+-- These will be handled in code with try-catch
+
+-- Add new columns to settings if they don't exist
+-- These will be handled in code with try-catch
 `;
