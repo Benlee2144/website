@@ -171,10 +171,10 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="text-gray-300 dark:text-gray-600 ml-1">&#8597;</span>;
+      return <span className="text-gray-400 ml-1">&#8597;</span>;
     }
     return (
-      <span className="text-primary-600 ml-1">
+      <span className="text-blue-600 ml-1">
         {sortDirection === 'asc' ? '&#8593;' : '&#8595;'}
       </span>
     );
@@ -225,13 +225,13 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-white">
       {/* Filters */}
-      <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 space-y-3">
+      <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-3">
         {/* Search */}
         <div className="relative">
           <svg
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -261,7 +261,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               checked={state.leadFilters.hasEmail || false}
               onChange={(e) => handleFilterChange('hasEmail', e.target.checked || undefined)}
             />
-            <span className="text-sm">Has Email</span>
+            <span className="text-sm text-gray-700">Has Email</span>
           </label>
 
           <label className="filter-toggle">
@@ -271,7 +271,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               checked={state.leadFilters.hasWebsite || false}
               onChange={(e) => handleFilterChange('hasWebsite', e.target.checked || undefined)}
             />
-            <span className="text-sm">Has Website</span>
+            <span className="text-sm text-gray-700">Has Website</span>
           </label>
 
           <label className="filter-toggle">
@@ -281,7 +281,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               checked={state.leadFilters.opportunityFinder || false}
               onChange={(e) => handleFilterChange('opportunityFinder', e.target.checked || undefined)}
             />
-            <span className="text-sm">Opportunity Finder</span>
+            <span className="text-sm text-gray-700">Opportunity Finder</span>
           </label>
 
           <select
@@ -317,7 +317,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               value={minScore ?? ''}
               onChange={(e) => setMinScore(e.target.value ? parseInt(e.target.value) : undefined)}
             />
-            <span className="text-gray-400">-</span>
+            <span className="text-gray-500">-</span>
             <input
               type="number"
               className="filter-input w-16"
@@ -327,7 +327,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
               value={maxScore ?? ''}
               onChange={(e) => setMaxScore(e.target.value ? parseInt(e.target.value) : undefined)}
             />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Score</span>
+            <span className="text-xs text-gray-600">Score</span>
           </div>
 
           {(Object.keys(state.leadFilters).length > 0 || minScore !== undefined || maxScore !== undefined) && (
@@ -337,7 +337,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                 setMinScore(undefined);
                 setMaxScore(undefined);
               }}
-              className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700"
+              className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium"
             >
               Clear Filters
             </button>
@@ -346,8 +346,8 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
 
         {/* Bulk actions bar */}
         {selectedLeadIds.size > 0 && (
-          <div className="flex items-center gap-3 p-2 bg-primary-50 dark:bg-primary-900/30 rounded-lg">
-            <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+          <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <span className="text-sm font-medium text-blue-800">
               {selectedLeadIds.size} selected
             </span>
             <div className="flex gap-2">
@@ -365,12 +365,12 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   Tag
                 </button>
                 {showTagMenu && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
                     {tags?.map(tag => (
                       <button
                         key={tag.id}
                         onClick={() => handleBulkTag(tag.id)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                       >
                         <span
                           className="w-3 h-3 rounded-full"
@@ -393,22 +393,22 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   Export
                 </button>
                 {showExportMenu && (
-                  <div className="absolute top-full left-0 mt-1 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                  <div className="absolute top-full left-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
                     <button
                       onClick={() => handleBulkExport('csv')}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     >
                       CSV
                     </button>
                     <button
                       onClick={() => handleBulkExport('json')}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     >
                       JSON
                     </button>
                     <button
                       onClick={() => handleBulkExport('xlsx')}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     >
                       Excel
                     </button>
@@ -448,7 +448,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
         ) : sortedLeads.length === 0 ? (
           <div className="text-center py-16">
             <svg
-              className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"
+              className="w-16 h-16 text-gray-400 mx-auto mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -460,8 +460,8 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No leads found</h3>
-            <p className="text-gray-500 dark:text-gray-400">
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No leads found</h3>
+            <p className="text-gray-600">
               {Object.keys(state.leadFilters).length > 0
                 ? 'Try adjusting your filters'
                 : 'Run a scrape to find leads'}
@@ -480,20 +480,20 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                   />
                 </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('businessName')}
                 >
                   Business Name <SortIcon field="businessName" />
                 </th>
                 <th>Category</th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('rating')}
                 >
                   Rating <SortIcon field="rating" />
                 </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('reviewCount')}
                 >
                   Reviews <SortIcon field="reviewCount" />
@@ -501,29 +501,29 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                 <th>Phone</th>
                 <th>Emails</th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('leadScore')}
                 >
                   Score <SortIcon field="leadScore" />
                 </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('enrichmentStatus')}
                 >
                   Status <SortIcon field="enrichmentStatus" />
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200">
               {sortedLeads.map((lead) => (
                 <tr
                   key={lead.id}
                   className={`cursor-pointer transition-colors ${
                     selectedLeadIds.has(lead.id)
-                      ? 'bg-primary-50 dark:bg-primary-900/20'
+                      ? 'bg-blue-50'
                       : state.selectedLeadId === lead.id
-                      ? 'bg-gray-50 dark:bg-gray-800'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'bg-gray-100'
+                      : 'hover:bg-gray-50'
                   }`}
                 >
                   <td onClick={(e) => e.stopPropagation()}>
@@ -538,26 +538,26 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                     className="max-w-xs"
                     onClick={() => dispatch({ type: 'SELECT_LEAD', leadId: lead.id })}
                   >
-                    <div className="truncate font-medium text-gray-900 dark:text-gray-100">{lead.businessName}</div>
+                    <div className="truncate font-medium text-gray-900">{lead.businessName}</div>
                     {lead.address && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.address}</div>
+                      <div className="text-xs text-gray-600 truncate">{lead.address}</div>
                     )}
                   </td>
-                  <td className="text-gray-500 dark:text-gray-400">{lead.category || '-'}</td>
+                  <td className="text-gray-700">{lead.category || '-'}</td>
                   <td>
                     {lead.rating ? (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <span className="flex items-center gap-1 text-gray-800">
+                        <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
                         {lead.rating.toFixed(1)}
                       </span>
                     ) : (
-                      '-'
+                      <span className="text-gray-500">-</span>
                     )}
                   </td>
-                  <td>{lead.reviewCount ?? '-'}</td>
-                  <td className="text-gray-500 dark:text-gray-400">{lead.phone || '-'}</td>
+                  <td className="text-gray-700">{lead.reviewCount ?? '-'}</td>
+                  <td className="text-gray-700">{lead.phone || '-'}</td>
                   <td>
                     {lead.emails.length > 0 ? (
                       <div className="flex items-center gap-1">
@@ -565,7 +565,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                         {lead.emails.map(email => getEmailVerificationIcon(email))}
                       </div>
                     ) : (
-                      '-'
+                      <span className="text-gray-500">-</span>
                     )}
                   </td>
                   <td>{getScoreBadge(lead.leadScore)}</td>
@@ -578,7 +578,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-500 dark:text-gray-400 flex justify-between items-center">
+      <div className="px-4 py-2 border-t border-gray-200 bg-white text-sm text-gray-700 flex justify-between items-center">
         <span>
           {sortedLeads.length} leads
           {leads && sortedLeads.length !== leads.length && ` (filtered from ${leads.length})`}
