@@ -295,6 +295,7 @@ export function getLeadsByProject(projectId: string, filters?: LeadFilters): Lea
 export function updateLead(id: string, input: Partial<{
   emails: string[];
   contactPageUrl: string | null;
+  websiteUrl: string | null;
   leadScore: number;
   enrichmentStatus: EnrichmentStatus;
   errorMessage: string | null;
@@ -312,6 +313,10 @@ export function updateLead(id: string, input: Partial<{
   if (input.contactPageUrl !== undefined) {
     updates.push('contact_page_url = ?');
     values.push(input.contactPageUrl);
+  }
+  if (input.websiteUrl !== undefined) {
+    updates.push('website_url = ?');
+    values.push(input.websiteUrl);
   }
   if (input.leadScore !== undefined) {
     updates.push('lead_score = ?');
@@ -343,13 +348,15 @@ export function deleteLeadsByProject(projectId: string): number {
 
 export function getPendingEnrichmentLeads(projectId: string, limit: number = 10): Lead[] {
   const db = getDatabase();
+  // Get all pending leads - enrichment will try to get website from Google Maps if missing
   const stmt = db.prepare(`
     SELECT * FROM leads
     WHERE project_id = ?
     AND enrichment_status = 'pending'
-    AND website_url IS NOT NULL
-    AND website_url != ''
     AND is_duplicate = 0
+    ORDER BY
+      CASE WHEN website_url IS NOT NULL AND website_url != '' THEN 0 ELSE 1 END,
+      created_at ASC
     LIMIT ?
   `);
   const rows = stmt.all(projectId, limit) as any[];

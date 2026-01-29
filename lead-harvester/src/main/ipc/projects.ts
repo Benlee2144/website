@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, BrowserWindow } from 'electron';
 import {
   createProject,
   getProject,
@@ -30,6 +30,18 @@ import { ProjectSchema, LeadFiltersSchema } from '../../shared/schemas';
 import type { IpcResponse, Project, Lead, LeadFilters, LogEntry, Tag, VerifiedEmail } from '../../shared/types';
 
 /**
+ * Broadcast project changes to all windows
+ */
+function broadcastProjectsChanged(): void {
+  const windows = BrowserWindow.getAllWindows();
+  for (const win of windows) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('projects:changed');
+    }
+  }
+}
+
+/**
  * Register project-related IPC handlers
  */
 export function registerProjectHandlers(): void {
@@ -58,6 +70,7 @@ export function registerProjectHandlers(): void {
     try {
       const validated = ProjectSchema.parse(input);
       const project = createProject(validated);
+      broadcastProjectsChanged();
       return { success: true, data: project };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -81,6 +94,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle('projects:delete', async (_, id: string): Promise<IpcResponse<boolean>> => {
     try {
       const result = deleteProject(id);
+      broadcastProjectsChanged();
       return { success: true, data: result };
     } catch (error) {
       return { success: false, error: String(error) };

@@ -45,7 +45,17 @@ export function useIPCQuery<T>(
 
 // Projects hooks
 export function useProjects() {
-  return useIPCQuery(() => window.api.projects.getAll(), []);
+  const query = useIPCQuery(() => window.api.projects.getAll(), []);
+
+  // Subscribe to project changes (create/delete)
+  useEffect(() => {
+    const unsubscribe = window.api.projects.onChange(() => {
+      query.refetch();
+    });
+    return unsubscribe;
+  }, [query.refetch]);
+
+  return query;
 }
 
 export function useProject(id: string | null) {

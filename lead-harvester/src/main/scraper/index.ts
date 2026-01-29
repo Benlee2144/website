@@ -11,7 +11,6 @@ import {
   closeEnrichment,
   runEnrichment,
   pauseEnrichment,
-  skipLeadsWithoutWebsite,
   isEnrichmentRunning,
 } from './enrichment';
 import { calculateLeadScore } from '../utils/scoring';
@@ -184,8 +183,8 @@ export async function startRun(projectId: string): Promise<void> {
         updateLead(lead.id, { leadScore: score });
       }
 
-      // Mark leads without website as skipped
-      skipLeadsWithoutWebsite(projectId);
+      // Note: We no longer skip leads without website URLs
+      // Enrichment will try to get website from Google Maps page
 
       // Update run state
       runState.phase = 'enriching';

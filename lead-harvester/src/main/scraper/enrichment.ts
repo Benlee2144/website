@@ -4,7 +4,7 @@ import { extractEmailsFromWebsite } from './email-extractor';
 import { TaskQueue, delayWithJitter } from './task-queue';
 import { createScopedLogger } from '../utils/logger';
 import { calculateLeadScore } from '../utils/scoring';
-import { updateLead, getPendingEnrichmentLeads, saveRunState, getRunState } from '../database';
+import { updateLead, getPendingEnrichmentLeads, saveRunState, getRunState, getDatabase } from '../database';
 import type { Lead, AppSettings, RunState } from '../../shared/types';
 
 const logger = createScopedLogger('Enrichment');
@@ -56,15 +56,70 @@ export async function closeEnrichment(): Promise<void> {
 }
 
 /**
+ * Extract website URL from Google Maps page
+ */
+async function extractWebsiteFromGoogleMaps(
+  page: Page,
+  googleMapsUrl: string,
+  settings: AppSettings
+): Promise<string | null> {
+  try {
+    await page.goto(googleMapsUrl, {
+      timeout: settings.websiteCrawlTimeout,
+      waitUntil: 'domcontentloaded',
+    });
+
+    await delayWithJitter(settings.safeMode ? 2000 : 1000);
+
+    // Try primary selector
+    const websiteLink = await page.$('a[data-item-id="authority"]');
+    if (websiteLink) {
+      const href = await websiteLink.getAttribute('href');
+      if (href) return href;
+    }
+
+    // Try alternative selectors
+    const websiteLinks = await page.$$('a[href*="http"]');
+    for (const link of websiteLinks) {
+      const href = await link.getAttribute('href');
+      const ariaLabel = await link.getAttribute('aria-label');
+      if (
+        href &&
+        !href.includes('google.com') &&
+        !href.includes('maps.google') &&
+        (ariaLabel?.toLowerCase().includes('website') ||
+          ariaLabel?.toLowerCase().includes('site'))
+      ) {
+        return href;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    logger.debug('Failed to extract website from Google Maps', { error: String(error) });
+    return null;
+  }
+}
+
+/**
  * Enrich a single lead with email and contact info
  */
 async function enrichLead(
   lead: Lead,
   page: Page,
   settings: AppSettings
-): Promise<{ emails: string[]; contactPageUrl?: string }> {
-  if (!lead.websiteUrl) {
-    return { emails: [] };
+): Promise<{ emails: string[]; contactPageUrl?: string; websiteUrl?: string }> {
+  let websiteUrl = lead.websiteUrl;
+
+  // If no website URL, try to get it from Google Maps
+  if (!websiteUrl && lead.googleMapsUrl) {
+    logger.info(`Getting website for: ${lead.businessName}`);
+    websiteUrl = await extractWebsiteFromGoogleMaps(page, lead.googleMapsUrl, settings) || undefined;
+  }
+
+  if (!websiteUrl) {
+    logger.info(`No website found for: ${lead.businessName}`);
+    return { emails: [], websiteUrl: undefined };
   }
 
   logger.info(`Enriching: ${lead.businessName}`);
@@ -73,12 +128,12 @@ async function enrichLead(
   updateLead(lead.id, { enrichmentStatus: 'in_progress' });
 
   try {
-    const result = await extractEmailsFromWebsite(page, lead.websiteUrl, {
+    const result = await extractEmailsFromWebsite(page, websiteUrl, {
       maxPages: 6,
       timeout: settings.websiteCrawlTimeout,
     });
 
-    return result;
+    return { ...result, websiteUrl };
   } catch (error) {
     logger.error(`Failed to enrich ${lead.businessName}`, { error: String(error) });
     throw error;
@@ -135,13 +190,15 @@ export async function runEnrichment(
           // Calculate score with new data
           const score = calculateLeadScore({
             ...lead,
+            websiteUrl: result.websiteUrl,
             emails: result.emails,
           });
 
-          // Update lead with results
+          // Update lead with results (including website URL if newly found)
           updateLead(lead.id, {
             emails: result.emails,
             contactPageUrl: result.contactPageUrl || null,
+            websiteUrl: result.websiteUrl || lead.websiteUrl || null,
             leadScore: score,
             enrichmentStatus: 'done',
             errorMessage: null,

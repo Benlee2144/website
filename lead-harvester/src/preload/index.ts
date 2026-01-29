@@ -30,6 +30,11 @@ const api = {
       ipcRenderer.invoke('projects:update', id, input),
     delete: (id: string): Promise<IpcResponse<boolean>> =>
       ipcRenderer.invoke('projects:delete', id),
+    onChange: (callback: () => void): (() => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('projects:changed', handler);
+      return () => ipcRenderer.removeListener('projects:changed', handler);
+    },
   },
 
   // Leads
