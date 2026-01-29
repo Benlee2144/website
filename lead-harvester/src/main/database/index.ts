@@ -13,6 +13,10 @@ import type {
   LeadFilters,
   EnrichmentStatus,
   ProjectStatus,
+  Tag,
+  ThemeMode,
+  VerifiedEmail,
+  EmailVerificationStatus,
 } from '../../shared/types';
 
 let db: Database.Database | null = null;
@@ -472,6 +476,7 @@ export function getSettings(): AppSettings {
     websiteCrawlTimeout: row.website_crawl_timeout,
     userAgent: row.user_agent,
     showOnboarding: row.show_onboarding === 1,
+    theme: (row.theme || 'system') as ThemeMode,
   };
 }
 
@@ -508,6 +513,10 @@ export function updateSettings(input: Partial<AppSettings>): AppSettings {
   if (input.showOnboarding !== undefined) {
     updates.push('show_onboarding = ?');
     values.push(input.showOnboarding ? 1 : 0);
+  }
+  if (input.theme !== undefined) {
+    updates.push('theme = ?');
+    values.push(input.theme);
   }
 
   if (updates.length > 0) {
@@ -567,4 +576,264 @@ export function clearLogsByProject(projectId: string): void {
   const db = getDatabase();
   const stmt = db.prepare('DELETE FROM logs WHERE project_id = ?');
   stmt.run(projectId);
+}
+
+// ============= Tags =============
+
+export function createTag(name: string, color: string = '#3B82F6'): Tag {
+  const db = getDatabase();
+  const id = uuidv4();
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare(`
+    INSERT INTO tags (id, name, color, created_at)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  stmt.run(id, name, color, now);
+
+  return { id, name, color, createdAt: now };
+}
+
+export function getAllTags(): Tag[] {
+  const db = getDatabase();
+  const stmt = db.prepare('SELECT * FROM tags ORDER BY name ASC');
+  const rows = stmt.all() as any[];
+
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    createdAt: row.created_at,
+  }));
+}
+
+export function getTag(id: string): Tag | null {
+  const db = getDatabase();
+  const stmt = db.prepare('SELECT * FROM tags WHERE id = ?');
+  const row = stmt.get(id) as any;
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    createdAt: row.created_at,
+  };
+}
+
+export function updateTag(id: string, input: { name?: string; color?: string }): Tag | null {
+  const db = getDatabase();
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (input.name !== undefined) {
+    updates.push('name = ?');
+    values.push(input.name);
+  }
+  if (input.color !== undefined) {
+    updates.push('color = ?');
+    values.push(input.color);
+  }
+
+  if (updates.length > 0) {
+    values.push(id);
+    const stmt = db.prepare(`UPDATE tags SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+  }
+
+  return getTag(id);
+}
+
+export function deleteTag(id: string): boolean {
+  const db = getDatabase();
+  const stmt = db.prepare('DELETE FROM tags WHERE id = ?');
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
+export function addTagToLead(leadId: string, tagId: string): void {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO lead_tags (lead_id, tag_id)
+    VALUES (?, ?)
+  `);
+  stmt.run(leadId, tagId);
+}
+
+export function removeTagFromLead(leadId: string, tagId: string): void {
+  const db = getDatabase();
+  const stmt = db.prepare('DELETE FROM lead_tags WHERE lead_id = ? AND tag_id = ?');
+  stmt.run(leadId, tagId);
+}
+
+export function getTagsForLead(leadId: string): Tag[] {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    SELECT t.* FROM tags t
+    INNER JOIN lead_tags lt ON lt.tag_id = t.id
+    WHERE lt.lead_id = ?
+    ORDER BY t.name ASC
+  `);
+  const rows = stmt.all(leadId) as any[];
+
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    createdAt: row.created_at,
+  }));
+}
+
+export function getLeadsByTag(tagId: string): Lead[] {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    SELECT l.* FROM leads l
+    INNER JOIN lead_tags lt ON lt.lead_id = l.id
+    WHERE lt.tag_id = ?
+    ORDER BY l.lead_score DESC
+  `);
+  const rows = stmt.all(tagId) as any[];
+  return rows.map(mapLeadRow);
+}
+
+export function addTagToLeads(leadIds: string[], tagId: string): void {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO lead_tags (lead_id, tag_id)
+    VALUES (?, ?)
+  `);
+
+  const transaction = db.transaction(() => {
+    for (const leadId of leadIds) {
+      stmt.run(leadId, tagId);
+    }
+  });
+
+  transaction();
+}
+
+export function removeTagFromLeads(leadIds: string[], tagId: string): void {
+  const db = getDatabase();
+  const placeholders = leadIds.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM lead_tags WHERE lead_id IN (${placeholders}) AND tag_id = ?`);
+  stmt.run(...leadIds, tagId);
+}
+
+// ============= Email Verification =============
+
+export function getEmailVerification(email: string): VerifiedEmail | null {
+  const db = getDatabase();
+  const stmt = db.prepare('SELECT * FROM email_verifications WHERE email = ?');
+  const row = stmt.get(email) as any;
+  if (!row) return null;
+
+  return {
+    email: row.email,
+    status: row.status as EmailVerificationStatus,
+    mxValid: row.mx_valid === null ? undefined : row.mx_valid === 1,
+    syntaxValid: row.syntax_valid === 1,
+    verifiedAt: row.verified_at || undefined,
+  };
+}
+
+export function saveEmailVerification(verification: VerifiedEmail): void {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO email_verifications (email, status, mx_valid, syntax_valid, verified_at)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    verification.email,
+    verification.status,
+    verification.mxValid === undefined ? null : verification.mxValid ? 1 : 0,
+    verification.syntaxValid ? 1 : 0,
+    verification.verifiedAt || null
+  );
+}
+
+export function getEmailVerifications(emails: string[]): VerifiedEmail[] {
+  if (emails.length === 0) return [];
+
+  const db = getDatabase();
+  const placeholders = emails.map(() => '?').join(',');
+  const stmt = db.prepare(`SELECT * FROM email_verifications WHERE email IN (${placeholders})`);
+  const rows = stmt.all(...emails) as any[];
+
+  return rows.map(row => ({
+    email: row.email,
+    status: row.status as EmailVerificationStatus,
+    mxValid: row.mx_valid === null ? undefined : row.mx_valid === 1,
+    syntaxValid: row.syntax_valid === 1,
+    verifiedAt: row.verified_at || undefined,
+  }));
+}
+
+// ============= Cross-Project Duplicates =============
+
+export function checkCrossProjectDuplicate(
+  businessName: string,
+  address?: string,
+  excludeProjectId?: string
+): { projectId: string; projectName: string; leadId: string } | null {
+  const db = getDatabase();
+
+  if (!address) return null;
+
+  const normalizedName = businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedAddress = address.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  let query = `
+    SELECT l.id as lead_id, l.business_name, l.address, p.id as project_id, p.name as project_name
+    FROM leads l
+    INNER JOIN projects p ON l.project_id = p.id
+    WHERE l.address IS NOT NULL
+  `;
+  const params: any[] = [];
+
+  if (excludeProjectId) {
+    query += ' AND l.project_id != ?';
+    params.push(excludeProjectId);
+  }
+
+  const stmt = db.prepare(query);
+  const rows = stmt.all(...params) as any[];
+
+  for (const row of rows) {
+    const rowName = row.business_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const rowAddress = row.address.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (rowName === normalizedName && rowAddress === normalizedAddress) {
+      return {
+        projectId: row.project_id,
+        projectName: row.project_name,
+        leadId: row.lead_id,
+      };
+    }
+  }
+
+  return null;
+}
+
+// ============= Bulk Operations =============
+
+export function deleteLeads(leadIds: string[]): number {
+  if (leadIds.length === 0) return 0;
+
+  const db = getDatabase();
+  const placeholders = leadIds.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM leads WHERE id IN (${placeholders})`);
+  const result = stmt.run(...leadIds);
+  return result.changes;
+}
+
+export function getLeadsByIds(leadIds: string[]): Lead[] {
+  if (leadIds.length === 0) return [];
+
+  const db = getDatabase();
+  const placeholders = leadIds.map(() => '?').join(',');
+  const stmt = db.prepare(`SELECT * FROM leads WHERE id IN (${placeholders})`);
+  const rows = stmt.all(...leadIds) as any[];
+  return rows.map(mapLeadRow);
 }

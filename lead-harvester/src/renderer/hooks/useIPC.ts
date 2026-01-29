@@ -6,6 +6,8 @@ import type {
   LeadFilters,
   LogEntry,
   ScrapeProgress,
+  Tag,
+  VerifiedEmail,
 } from '../../shared/types';
 
 // Generic hook for IPC calls with loading state
@@ -237,5 +239,106 @@ export function useExport() {
     }
   }, []);
 
-  return { exportCSV, loading };
+  const exportLeads = useCallback(async (
+    projectId: string,
+    format: 'csv' | 'json' | 'xlsx',
+    filters?: LeadFilters,
+    selectedIds?: string[]
+  ) => {
+    setLoading(true);
+    try {
+      const result = await window.api.export.leads(projectId, format, filters, selectedIds);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { exportCSV, exportLeads, loading };
+}
+
+// Tags hooks
+export function useTags() {
+  return useIPCQuery(() => window.api.tags.getAll(), []);
+}
+
+export function useTagsForLead(leadId: string | null) {
+  return useIPCQuery(
+    () =>
+      leadId
+        ? window.api.tags.getForLead(leadId)
+        : Promise.resolve({ success: true, data: [] as Tag[] }),
+    [leadId]
+  );
+}
+
+export function useTagOperations() {
+  const [loading, setLoading] = useState(false);
+
+  const createTag = useCallback(async (name: string, color?: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.tags.create(name, color);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateTag = useCallback(async (id: string, input: { name?: string; color?: string }) => {
+    setLoading(true);
+    try {
+      const result = await window.api.tags.update(id, input);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteTag = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.tags.delete(id);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const addTagToLead = useCallback(async (leadId: string, tagId: string) => {
+    return window.api.tags.addToLead(leadId, tagId);
+  }, []);
+
+  const removeTagFromLead = useCallback(async (leadId: string, tagId: string) => {
+    return window.api.tags.removeFromLead(leadId, tagId);
+  }, []);
+
+  return { createTag, updateTag, deleteTag, addTagToLead, removeTagFromLead, loading };
+}
+
+// Email verification hooks
+export function useEmailVerification() {
+  const [loading, setLoading] = useState(false);
+
+  const verifyEmail = useCallback(async (email: string) => {
+    setLoading(true);
+    try {
+      const result = await window.api.email.verify(email);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const verifyEmails = useCallback(async (emails: string[]) => {
+    setLoading(true);
+    try {
+      const result = await window.api.email.verifyBulk(emails);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { verifyEmail, verifyEmails, loading };
 }

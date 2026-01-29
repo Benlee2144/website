@@ -54,6 +54,9 @@ export interface RunState {
   error?: string;
 }
 
+// Theme settings
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 // Settings
 export interface AppSettings {
   safeMode: boolean;
@@ -63,6 +66,7 @@ export interface AppSettings {
   websiteCrawlTimeout: number;
   userAgent: string;
   showOnboarding: boolean;
+  theme: ThemeMode;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -73,6 +77,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   websiteCrawlTimeout: 15000,
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   showOnboarding: true,
+  theme: 'system',
 };
 
 export const USER_AGENTS = [
@@ -128,4 +133,54 @@ export interface ExportOptions {
   projectId: string;
   filters?: LeadFilters;
   filePath: string;
+  format?: 'csv' | 'json' | 'xlsx';
+  selectedIds?: string[];
+}
+
+// Email verification status
+export type EmailVerificationStatus = 'unverified' | 'valid' | 'invalid' | 'checking';
+
+export interface VerifiedEmail {
+  email: string;
+  status: EmailVerificationStatus;
+  mxValid?: boolean;
+  syntaxValid?: boolean;
+  verifiedAt?: string;
+}
+
+// Tags system
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface LeadTag {
+  leadId: string;
+  tagId: string;
+}
+
+// Extended Lead with tags and email verification
+export interface LeadWithTags extends Lead {
+  tags?: Tag[];
+  verifiedEmails?: VerifiedEmail[];
+}
+
+// Bulk action types
+export type BulkActionType = 'delete' | 'export' | 'tag' | 'untag' | 'verify_emails';
+
+export interface BulkActionPayload {
+  action: BulkActionType;
+  leadIds: string[];
+  tagId?: string;
+  exportFormat?: 'csv' | 'json' | 'xlsx';
+}
+
+// Extended filters with score range
+export interface ExtendedLeadFilters extends LeadFilters {
+  minScore?: number;
+  maxScore?: number;
+  tags?: string[];
+  emailStatus?: EmailVerificationStatus;
 }

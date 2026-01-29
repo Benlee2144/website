@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAppState } from '../store';
-import { useLeads } from '../hooks/useIPC';
-import type { Lead, LeadFilters } from '../../shared/types';
+import { useLeads, useTags } from '../hooks/useIPC';
+import type { Lead, LeadFilters, Tag, VerifiedEmail } from '../../shared/types';
 
 interface LeadsTableProps {
   projectId: string;
@@ -11,11 +11,30 @@ interface LeadsTableProps {
 type SortField = 'businessName' | 'rating' | 'reviewCount' | 'leadScore' | 'enrichmentStatus';
 type SortDirection = 'asc' | 'desc';
 
+const TAG_COLORS = [
+  '#3B82F6', // blue
+  '#10B981', // green
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+];
+
 export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
   const { state, dispatch } = useAppState();
   const [sortField, setSortField] = useState<SortField>('leadScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [minScore, setMinScore] = useState<number | undefined>();
+  const [maxScore, setMaxScore] = useState<number | undefined>();
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [showTagMenu, setShowTagMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [emailVerifications, setEmailVerifications] = useState<Map<string, VerifiedEmail>>(new Map());
+
+  const { data: tags, refetch: refetchTags } = useTags();
 
   // Build filters
   const filters: LeadFilters = useMemo(() => ({
@@ -25,10 +44,20 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
 
   const { data: leads, loading, error, refetch } = useLeads(projectId, filters);
 
-  // Sort leads
+  // Sort and filter leads
   const sortedLeads = useMemo(() => {
     if (!leads) return [];
-    return [...leads].sort((a, b) => {
+    let filtered = [...leads];
+
+    // Apply score range filter
+    if (minScore !== undefined) {
+      filtered = filtered.filter(l => l.leadScore >= minScore);
+    }
+    if (maxScore !== undefined) {
+      filtered = filtered.filter(l => l.leadScore <= maxScore);
+    }
+
+    return filtered.sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
         case 'businessName':
@@ -49,7 +78,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [leads, sortField, sortDirection]);
+  }, [leads, sortField, sortDirection, minScore, maxScore]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -70,9 +99,79 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
     dispatch({ type: 'SET_LEAD_FILTERS', filters: newFilters });
   };
 
+  // Bulk selection handlers
+  const toggleSelectAll = useCallback(() => {
+    if (selectedLeadIds.size === sortedLeads.length) {
+      setSelectedLeadIds(new Set());
+    } else {
+      setSelectedLeadIds(new Set(sortedLeads.map(l => l.id)));
+    }
+  }, [sortedLeads, selectedLeadIds]);
+
+  const toggleSelectLead = useCallback((leadId: string) => {
+    const newSet = new Set(selectedLeadIds);
+    if (newSet.has(leadId)) {
+      newSet.delete(leadId);
+    } else {
+      newSet.add(leadId);
+    }
+    setSelectedLeadIds(newSet);
+  }, [selectedLeadIds]);
+
+  // Bulk actions
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.size === 0) return;
+    if (!confirm(`Delete ${selectedLeadIds.size} selected leads?`)) return;
+
+    const result = await window.api.bulk.deleteLeads(Array.from(selectedLeadIds));
+    if (result.success) {
+      setSelectedLeadIds(new Set());
+      refetch();
+      onRefresh();
+    }
+  };
+
+  const handleBulkTag = async (tagId: string) => {
+    if (selectedLeadIds.size === 0) return;
+
+    const result = await window.api.bulk.addTag(Array.from(selectedLeadIds), tagId);
+    if (result.success) {
+      setShowTagMenu(false);
+      refetch();
+    }
+  };
+
+  const handleBulkExport = async (format: 'csv' | 'json' | 'xlsx') => {
+    const result = await window.api.export.leads(
+      projectId,
+      format,
+      filters,
+      selectedLeadIds.size > 0 ? Array.from(selectedLeadIds) : undefined
+    );
+    if (result.success) {
+      setShowExportMenu(false);
+    }
+  };
+
+  const handleVerifyEmails = async () => {
+    const leadsToVerify = selectedLeadIds.size > 0
+      ? sortedLeads.filter(l => selectedLeadIds.has(l.id))
+      : sortedLeads;
+
+    const allEmails = leadsToVerify.flatMap(l => l.emails);
+    if (allEmails.length === 0) return;
+
+    const result = await window.api.email.verifyBulk(allEmails);
+    if (result.success && result.data) {
+      const newVerifications = new Map(emailVerifications);
+      result.data.forEach(v => newVerifications.set(v.email, v));
+      setEmailVerifications(newVerifications);
+    }
+  };
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="text-gray-300 ml-1">&#8597;</span>;
+      return <span className="text-gray-300 dark:text-gray-600 ml-1">&#8597;</span>;
     }
     return (
       <span className="text-primary-600 ml-1">
@@ -103,10 +202,32 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
     return <span className="badge-gray">{score}</span>;
   };
 
+  const getEmailVerificationIcon = (email: string) => {
+    const verification = emailVerifications.get(email);
+    if (!verification) return null;
+
+    switch (verification.status) {
+      case 'valid':
+        return (
+          <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        );
+      case 'invalid':
+        return (
+          <svg className="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* Filters */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-3">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 space-y-3">
         {/* Search */}
         <div className="relative">
           <svg
@@ -133,30 +254,30 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
 
         {/* Filter toggles */}
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+          <label className="filter-toggle">
             <input
               type="checkbox"
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="checkbox"
               checked={state.leadFilters.hasEmail || false}
               onChange={(e) => handleFilterChange('hasEmail', e.target.checked || undefined)}
             />
             <span className="text-sm">Has Email</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+          <label className="filter-toggle">
             <input
               type="checkbox"
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="checkbox"
               checked={state.leadFilters.hasWebsite || false}
               onChange={(e) => handleFilterChange('hasWebsite', e.target.checked || undefined)}
             />
             <span className="text-sm">Has Website</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+          <label className="filter-toggle">
             <input
               type="checkbox"
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="checkbox"
               checked={state.leadFilters.opportunityFinder || false}
               onChange={(e) => handleFilterChange('opportunityFinder', e.target.checked || undefined)}
             />
@@ -164,7 +285,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
           </label>
 
           <select
-            className="px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-sm"
+            className="filter-select"
             value={state.leadFilters.minRating || ''}
             onChange={(e) => handleFilterChange('minRating', e.target.value ? parseFloat(e.target.value) : undefined)}
           >
@@ -175,7 +296,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
           </select>
 
           <select
-            className="px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-sm"
+            className="filter-select"
             value={state.leadFilters.minReviews || ''}
             onChange={(e) => handleFilterChange('minReviews', e.target.value ? parseInt(e.target.value) : undefined)}
           >
@@ -185,15 +306,130 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
             <option value="100">100+ Reviews</option>
           </select>
 
-          {Object.keys(state.leadFilters).length > 0 && (
+          {/* Score range filter */}
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              className="filter-input w-16"
+              placeholder="Min"
+              min="0"
+              max="100"
+              value={minScore ?? ''}
+              onChange={(e) => setMinScore(e.target.value ? parseInt(e.target.value) : undefined)}
+            />
+            <span className="text-gray-400">-</span>
+            <input
+              type="number"
+              className="filter-input w-16"
+              placeholder="Max"
+              min="0"
+              max="100"
+              value={maxScore ?? ''}
+              onChange={(e) => setMaxScore(e.target.value ? parseInt(e.target.value) : undefined)}
+            />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Score</span>
+          </div>
+
+          {(Object.keys(state.leadFilters).length > 0 || minScore !== undefined || maxScore !== undefined) && (
             <button
-              onClick={() => dispatch({ type: 'RESET_LEAD_FILTERS' })}
-              className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700"
+              onClick={() => {
+                dispatch({ type: 'RESET_LEAD_FILTERS' });
+                setMinScore(undefined);
+                setMaxScore(undefined);
+              }}
+              className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700"
             >
               Clear Filters
             </button>
           )}
         </div>
+
+        {/* Bulk actions bar */}
+        {selectedLeadIds.size > 0 && (
+          <div className="flex items-center gap-3 p-2 bg-primary-50 dark:bg-primary-900/30 rounded-lg">
+            <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+              {selectedLeadIds.size} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkDelete}
+                className="btn-sm btn-danger"
+              >
+                Delete
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowTagMenu(!showTagMenu)}
+                  className="btn-sm btn-secondary"
+                >
+                  Tag
+                </button>
+                {showTagMenu && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                    {tags?.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => handleBulkTag(tag.id)}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        {tag.name}
+                      </button>
+                    ))}
+                    {(!tags || tags.length === 0) && (
+                      <div className="px-3 py-2 text-sm text-gray-500">No tags yet</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="btn-sm btn-secondary"
+                >
+                  Export
+                </button>
+                {showExportMenu && (
+                  <div className="absolute top-full left-0 mt-1 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                    <button
+                      onClick={() => handleBulkExport('csv')}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      CSV
+                    </button>
+                    <button
+                      onClick={() => handleBulkExport('json')}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      JSON
+                    </button>
+                    <button
+                      onClick={() => handleBulkExport('xlsx')}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Excel
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleVerifyEmails}
+                className="btn-sm btn-secondary"
+              >
+                Verify Emails
+              </button>
+              <button
+                onClick={() => setSelectedLeadIds(new Set())}
+                className="btn-sm btn-ghost"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -212,7 +448,7 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
         ) : sortedLeads.length === 0 ? (
           <div className="text-center py-16">
             <svg
-              className="w-16 h-16 text-gray-300 mx-auto mb-4"
+              className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -224,8 +460,8 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No leads found</h3>
-            <p className="text-gray-500">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No leads found</h3>
+            <p className="text-gray-500 dark:text-gray-400">
               {Object.keys(state.leadFilters).length > 0
                 ? 'Try adjusting your filters'
                 : 'Run a scrape to find leads'}
@@ -235,21 +471,29 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
           <table className="table">
             <thead className="sticky top-0 z-10">
               <tr>
+                <th className="w-10">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={selectedLeadIds.size === sortedLeads.length && sortedLeads.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('businessName')}
                 >
                   Business Name <SortIcon field="businessName" />
                 </th>
                 <th>Category</th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('rating')}
                 >
                   Rating <SortIcon field="rating" />
                 </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('reviewCount')}
                 >
                   Reviews <SortIcon field="reviewCount" />
@@ -257,33 +501,49 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                 <th>Phone</th>
                 <th>Emails</th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('leadScore')}
                 >
                   Score <SortIcon field="leadScore" />
                 </th>
                 <th
-                  className="cursor-pointer hover:bg-gray-100"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('enrichmentStatus')}
                 >
                   Status <SortIcon field="enrichmentStatus" />
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {sortedLeads.map((lead) => (
                 <tr
                   key={lead.id}
-                  onClick={() => dispatch({ type: 'SELECT_LEAD', leadId: lead.id })}
-                  className={state.selectedLeadId === lead.id ? 'bg-primary-50' : ''}
+                  className={`cursor-pointer transition-colors ${
+                    selectedLeadIds.has(lead.id)
+                      ? 'bg-primary-50 dark:bg-primary-900/20'
+                      : state.selectedLeadId === lead.id
+                      ? 'bg-gray-50 dark:bg-gray-800'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
                 >
-                  <td className="max-w-xs">
-                    <div className="truncate font-medium">{lead.businessName}</div>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={selectedLeadIds.has(lead.id)}
+                      onChange={() => toggleSelectLead(lead.id)}
+                    />
+                  </td>
+                  <td
+                    className="max-w-xs"
+                    onClick={() => dispatch({ type: 'SELECT_LEAD', leadId: lead.id })}
+                  >
+                    <div className="truncate font-medium text-gray-900 dark:text-gray-100">{lead.businessName}</div>
                     {lead.address && (
-                      <div className="text-xs text-gray-500 truncate">{lead.address}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.address}</div>
                     )}
                   </td>
-                  <td className="text-gray-500">{lead.category || '-'}</td>
+                  <td className="text-gray-500 dark:text-gray-400">{lead.category || '-'}</td>
                   <td>
                     {lead.rating ? (
                       <span className="flex items-center gap-1">
@@ -297,10 +557,13 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
                     )}
                   </td>
                   <td>{lead.reviewCount ?? '-'}</td>
-                  <td className="text-gray-500">{lead.phone || '-'}</td>
+                  <td className="text-gray-500 dark:text-gray-400">{lead.phone || '-'}</td>
                   <td>
                     {lead.emails.length > 0 ? (
-                      <span className="badge-success">{lead.emails.length}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="badge-success">{lead.emails.length}</span>
+                        {lead.emails.map(email => getEmailVerificationIcon(email))}
+                      </div>
                     ) : (
                       '-'
                     )}
@@ -315,9 +578,33 @@ export default function LeadsTable({ projectId, onRefresh }: LeadsTableProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-gray-200 bg-white text-sm text-gray-500">
-        {sortedLeads.length} leads
-        {leads && sortedLeads.length !== leads.length && ` (filtered from ${leads.length})`}
+      <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-500 dark:text-gray-400 flex justify-between items-center">
+        <span>
+          {sortedLeads.length} leads
+          {leads && sortedLeads.length !== leads.length && ` (filtered from ${leads.length})`}
+        </span>
+        {selectedLeadIds.size === 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleBulkExport('csv')}
+              className="btn-sm btn-ghost"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={() => handleBulkExport('json')}
+              className="btn-sm btn-ghost"
+            >
+              Export JSON
+            </button>
+            <button
+              onClick={() => handleBulkExport('xlsx')}
+              className="btn-sm btn-ghost"
+            >
+              Export Excel
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

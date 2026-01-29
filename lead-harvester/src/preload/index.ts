@@ -7,6 +7,8 @@ import type {
   LogEntry,
   ScrapeProgress,
   IpcResponse,
+  Tag,
+  VerifiedEmail,
 } from '../shared/types';
 
 // Type-safe API for renderer
@@ -91,6 +93,48 @@ const api = {
       filters?: LeadFilters
     ): Promise<IpcResponse<{ path: string; count: number }>> =>
       ipcRenderer.invoke('export:csv', projectId, filters),
+    leads: (
+      projectId: string,
+      format: 'csv' | 'json' | 'xlsx',
+      filters?: LeadFilters,
+      selectedIds?: string[]
+    ): Promise<IpcResponse<{ path: string; count: number }>> =>
+      ipcRenderer.invoke('export:leads', projectId, format, filters, selectedIds),
+  },
+
+  // Tags
+  tags: {
+    getAll: (): Promise<IpcResponse<Tag[]>> => ipcRenderer.invoke('tags:getAll'),
+    create: (name: string, color?: string): Promise<IpcResponse<Tag>> =>
+      ipcRenderer.invoke('tags:create', name, color),
+    update: (id: string, input: { name?: string; color?: string }): Promise<IpcResponse<Tag | null>> =>
+      ipcRenderer.invoke('tags:update', id, input),
+    delete: (id: string): Promise<IpcResponse<boolean>> =>
+      ipcRenderer.invoke('tags:delete', id),
+    getForLead: (leadId: string): Promise<IpcResponse<Tag[]>> =>
+      ipcRenderer.invoke('tags:getForLead', leadId),
+    addToLead: (leadId: string, tagId: string): Promise<IpcResponse<void>> =>
+      ipcRenderer.invoke('tags:addToLead', leadId, tagId),
+    removeFromLead: (leadId: string, tagId: string): Promise<IpcResponse<void>> =>
+      ipcRenderer.invoke('tags:removeFromLead', leadId, tagId),
+  },
+
+  // Bulk actions
+  bulk: {
+    addTag: (leadIds: string[], tagId: string): Promise<IpcResponse<void>> =>
+      ipcRenderer.invoke('bulk:addTag', leadIds, tagId),
+    removeTag: (leadIds: string[], tagId: string): Promise<IpcResponse<void>> =>
+      ipcRenderer.invoke('bulk:removeTag', leadIds, tagId),
+    deleteLeads: (leadIds: string[]): Promise<IpcResponse<number>> =>
+      ipcRenderer.invoke('bulk:deleteLeads', leadIds),
+  },
+
+  // Email verification
+  email: {
+    verify: (email: string): Promise<IpcResponse<VerifiedEmail>> =>
+      ipcRenderer.invoke('email:verify', email),
+    verifyBulk: (emails: string[]): Promise<IpcResponse<VerifiedEmail[]>> =>
+      ipcRenderer.invoke('email:verifyBulk', emails),
   },
 };
 

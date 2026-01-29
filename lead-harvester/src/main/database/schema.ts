@@ -74,7 +74,34 @@ CREATE TABLE IF NOT EXISTS settings (
   max_results_default INTEGER NOT NULL DEFAULT 50,
   website_crawl_timeout INTEGER NOT NULL DEFAULT 15000,
   user_agent TEXT NOT NULL,
-  show_onboarding INTEGER NOT NULL DEFAULT 1
+  show_onboarding INTEGER NOT NULL DEFAULT 1,
+  theme TEXT NOT NULL DEFAULT 'system'
+);
+
+-- Tags table
+CREATE TABLE IF NOT EXISTS tags (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  color TEXT NOT NULL DEFAULT '#3B82F6',
+  created_at TEXT NOT NULL
+);
+
+-- Lead-Tag junction table
+CREATE TABLE IF NOT EXISTS lead_tags (
+  lead_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (lead_id, tag_id),
+  FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- Email verification cache table
+CREATE TABLE IF NOT EXISTS email_verifications (
+  email TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'unverified',
+  mx_valid INTEGER,
+  syntax_valid INTEGER NOT NULL DEFAULT 1,
+  verified_at TEXT
 );
 
 -- Indexes for performance
@@ -83,15 +110,17 @@ CREATE INDEX IF NOT EXISTS idx_leads_enrichment_status ON leads(enrichment_statu
 CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score);
 CREATE INDEX IF NOT EXISTS idx_logs_project_id ON logs(project_id);
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_lead_tags_lead_id ON lead_tags(lead_id);
+CREATE INDEX IF NOT EXISTS idx_lead_tags_tag_id ON lead_tags(tag_id);
 `;
 
 export const INITIAL_SETTINGS = `
 INSERT OR IGNORE INTO settings (
   id, safe_mode, concurrency, delay_between_actions,
-  max_results_default, website_crawl_timeout, user_agent, show_onboarding
+  max_results_default, website_crawl_timeout, user_agent, show_onboarding, theme
 ) VALUES (
   1, 1, 1, 2000, 50, 15000,
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  1
+  1, 'system'
 );
 `;
