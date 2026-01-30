@@ -5,6 +5,21 @@ node_modules/
 dist/
 release/
 
+# Gumroad distribution (large binaries)
+gumroad-release/*.zip
+gumroad-release/windows/*.exe
+gumroad-release/windows/*.dll
+gumroad-release/windows/*.pak
+gumroad-release/windows/*.dat
+gumroad-release/windows/*.bin
+gumroad-release/windows/*.html
+gumroad-release/windows/*.txt
+!gumroad-release/windows/README.txt
+gumroad-release/windows/*.json
+gumroad-release/windows/locales/
+gumroad-release/windows/resources/
+gumroad-release/mac/*.dmg
+
 # Environment
 .env
 .env.local
