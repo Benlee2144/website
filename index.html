@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#06040f">
   <title>The Prayer Realm — KingdomCovers</title>
-  <meta name="description" content="A living sanctuary by KingdomCovers. Lay your prayer on the altar, lift up the saints around you, and gather for the daily word — together, at His feet.">
+  <meta name="description" content="A living sanctuary by KingdomCovers. Lay your prayer on the altar, lift up the saints around you, and watch the realm pray across the earth — together, at His feet.">
   <meta property="og:title" content="The Prayer Realm — KingdomCovers">
   <meta property="og:description" content="Lay it at His feet. A living prayer room where believers carry one another.">
   <meta property="og:type" content="website">
@@ -16,6 +16,36 @@
   <link rel="stylesheet" href="css/realm.css">
 </head>
 <body data-room="altar">
+
+  <!-- ✦ Icon forge — every glyph in the realm is drawn by hand, no emoji -->
+  <svg id="iconForge" aria-hidden="true">
+    <defs>
+      <symbol id="i-cross" viewBox="0 0 24 24"><path d="M12 3v18M6.5 9h11"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20S4.8 15.6 3 11.3C1.7 8 3.7 5 6.8 5c2 0 3.7 1.2 5.2 3.2C13.5 6.2 15.2 5 17.2 5c3.1 0 5.1 3 3.8 6.3C19.2 15.6 12 20 12 20z"/></symbol>
+      <symbol id="i-dove" viewBox="0 0 24 24"><path d="M21.5 5.5c-4.5.8-7.3 2.6-9.2 5.6-1.3-2-3.7-2.6-5.8-1.3l2.8 2.6-5.8 6.1c4.9-.6 8.9-1.6 11.2-4.2 3-.3 5.8-3.4 6.8-8.8z"/><path d="M9.5 12.5c.6-2.2 2.2-3.5 4.3-3.8"/></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c.9 3.2 4.5 4.7 4.5 8.7a4.5 4.5 0 1 1-9 0c0-2.1.9-3.3 2-4.4.2 1.1.9 1.8 2 2.2-.7-2.2-.6-4.4.5-6.5z"/></symbol>
+      <symbol id="i-hands" viewBox="0 0 24 24"><path d="M12 3c-2 3.4-4.5 5.6-4.5 10v4.5L12 21l4.5-3.5V13c0-4.4-2.5-6.6-4.5-10z"/><path d="M12 8.5V17"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 2.8v5.4c0 4.8-2.9 7.7-7 9.8-4.1-2.1-7-5-7-9.8V5.8z"/><path d="M9 11.5l2 2 4-4"/></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8.5a1.5 1.5 0 0 1-1.5 1.5H14v-6h-4v6H5.5A1.5 1.5 0 0 1 4 19.5z"/></symbol>
+      <symbol id="i-wheat" viewBox="0 0 24 24"><path d="M12 21V7"/><path d="M12 11c-3.2 0-4.6-2-4.8-4.8C10 6.4 12 7.8 12 11zM12 11c3.2 0 4.6-2 4.8-4.8C14 6.4 12 7.8 12 11z"/><path d="M12 16c-3.2 0-4.6-2-4.8-4.8C10 11.4 12 12.8 12 16zM12 16c3.2 0 4.6-2 4.8-4.8C14 11.4 12 12.8 12 16z"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3.5 16.5L4.5 7l4.8 4L12 4.5 14.7 11l4.8-4 1 9.5z"/><path d="M5.5 20h13"/></symbol>
+      <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5l2.2 4.5L12 16.5 9.8 12z"/></symbol>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.2-5.5L13 17l2.2-6 1.6 1H21"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c3 3.6 3 13.4 0 17M12 3.5c-3 3.6-3 13.4 0 17"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l2.4-3A8.5 8.5 0 1 1 21 11.5z"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M21.5 2.5L11 13M21.5 2.5L15 21l-4-8-8-4z"/></symbol>
+      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V4"/><path d="M5.5 5c4-2 7.5 2 12.5 0v9c-5 2-8.5-2-12.5 0"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 6L8.5 12l6 6"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 10v4h3.5l5 4V6l-5 4z"/><path d="M16 9.5c1.6 1.6 1.6 3.4 0 5M18.5 7.5c2.6 2.6 2.6 6.4 0 9"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l2.2 6.3L20.5 12l-6.3 2.7L12 21l-2.2-6.3L3.5 12l6.3-2.7z"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-10.4A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.6C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/></symbol>
+      <symbol id="i-google" viewBox="0 0 24 24"><path d="M21 12.2c0-.7-.1-1.4-.2-2H12v3.9h5a4.3 4.3 0 0 1-1.9 2.8v2.3h3A9 9 0 0 0 21 12.2z"/><path d="M12 21a8.6 8.6 0 0 0 6-2.2l-3-2.3a5.4 5.4 0 0 1-8-2.8H4v2.4A9 9 0 0 0 12 21z"/><path d="M7 13.7a5.4 5.4 0 0 1 0-3.4V7.9H4a9 9 0 0 0 0 8.2z"/><path d="M12 6.6c1.3 0 2.5.4 3.4 1.3L18 5.3A9 9 0 0 0 4 7.9l3 2.4A5.4 5.4 0 0 1 12 6.6z"/></symbol>
+    </defs>
+  </svg>
 
   <!-- ✦ Atmosphere layers -->
   <canvas id="skyStars" aria-hidden="true"></canvas>
@@ -32,7 +62,7 @@
       <div class="portal">
         <div class="portal-ring"></div>
         <div class="portal-ring r2"></div>
-        <div class="portal-cross">✝</div>
+        <div class="portal-cross"><svg class="icon xl"><use href="#i-cross"/></svg></div>
       </div>
       <p class="veil-eyebrow">KINGDOMCOVERS PRESENTS</p>
       <h1 class="veil-title">THE PRAYER REALM</h1>
@@ -53,39 +83,44 @@
   <!-- ✦ Crown / header -->
   <header id="crown">
     <div class="brand">
-      <span class="brand-mark">✝</span>
+      <span class="brand-mark"><svg class="icon"><use href="#i-cross"/></svg></span>
       <span class="brand-text">
         <span class="brand-name">KINGDOM<em>COVERS</em></span>
         <span class="brand-sub">The Prayer Realm</span>
       </span>
     </div>
     <div class="crown-right">
-      <button id="soundBtn" class="icon-btn" title="Toggle ambience" aria-label="Toggle ambience">♪</button>
+      <div id="soulsPill" title="Souls in the realm right now"><span class="pulse-dot"></span><b id="soulsCount">1</b><span class="souls-label">present</span></div>
+      <button id="soundBtn" class="icon-btn" title="Toggle ambience" aria-label="Toggle ambience"><svg class="icon"><use href="#i-sound"/></svg></button>
+      <button id="dmBtn" class="icon-btn" title="Messages" aria-label="Messages" hidden><svg class="icon"><use href="#i-chat"/></svg><span id="dmDot" class="alert-dot" hidden></span></button>
       <div id="userChip" hidden>
         <img id="userPhoto" alt="" referrerpolicy="no-referrer">
         <span id="userName"></span>
       </div>
-      <button id="authBtn" class="gold-btn">Enter with Google</button>
+      <button id="authBtn" class="gold-btn"><svg class="icon"><use href="#i-google"/></svg><span>Enter with Google</span></button>
     </div>
   </header>
 
   <main>
     <!-- ✦ Hero -->
     <section id="hero">
+      <div class="hero-halo" aria-hidden="true"></div>
       <p class="hero-eyebrow">— A SANCTUARY BEYOND TIME —</p>
       <h1 class="hero-title">AT HIS<br><em>FEET</em></h1>
       <p id="verse" class="verse"></p>
       <div class="stats">
         <div class="stat"><b id="statPrayers">0</b><span>prayers on the altar</span></div>
+        <div class="stat-rule" aria-hidden="true"></div>
         <div class="stat"><b id="statAmens">0</b><span>amens lifted</span></div>
+        <div class="stat-rule" aria-hidden="true"></div>
         <div class="stat"><b id="statAnswered">0</b><span>answered</span></div>
       </div>
     </section>
 
     <!-- ✦ Room tabs -->
     <nav id="rooms" aria-label="Rooms">
-      <button class="room-tab active" data-room="altar">✦ The Altar</button>
-      <button class="room-tab" data-room="sanctuary">▷ The Sanctuary</button>
+      <button class="room-tab active" data-room="altar"><svg class="icon"><use href="#i-flame"/></svg>The Altar</button>
+      <button class="room-tab" data-room="map"><svg class="icon"><use href="#i-globe"/></svg>The Watch</button>
     </nav>
 
     <!-- ✦ THE ALTAR -->
@@ -105,20 +140,20 @@
             <input type="checkbox" id="anonToggle">
             <span>Place anonymously</span>
           </label>
-          <button id="submitPrayer" class="gold-btn big">🕊 Place on the Altar</button>
+          <button id="submitPrayer" class="gold-btn big"><svg class="icon"><use href="#i-dove"/></svg><span>Place on the Altar</span></button>
         </div>
         <div id="composerLocked" class="locked" hidden>
-          <button id="lockedAuthBtn" class="gold-btn">Enter with Google</button>
+          <button id="lockedAuthBtn" class="gold-btn"><svg class="icon"><use href="#i-google"/></svg><span>Enter with Google</span></button>
           <span>to place a prayer on the altar</span>
         </div>
       </div>
 
       <div id="wallTools">
         <div id="filterChips" class="chips"></div>
-        <select id="sortSel" aria-label="Sort prayers">
-          <option value="new">Newest first</option>
-          <option value="amens">Most prayed</option>
-        </select>
+        <div id="sortSeg" class="seg">
+          <button class="seg-btn active" data-sort="new">Newest</button>
+          <button class="seg-btn" data-sort="amens">Most lifted</button>
+        </div>
       </div>
 
       <div id="prayerGrid"></div>
@@ -128,41 +163,55 @@
       </div>
     </section>
 
-    <!-- ✦ THE SANCTUARY -->
-    <section id="sanctuary" class="room">
-      <div class="sanctum glass">
-        <div class="sanctum-head">
-          <span id="liveBadge" class="live-badge" hidden>● LIVE NOW</span>
-          <h2 id="sanctumTitle">The Sanctuary</h2>
+    <!-- ✦ THE WATCH — live world map -->
+    <section id="map" class="room">
+      <div class="watch glass">
+        <div class="watch-head">
+          <h2><svg class="icon"><use href="#i-globe"/></svg> The Watch</h2>
+          <p>Every light is a soul keeping watch in the realm. Gold flames are prayers rising from the earth.</p>
         </div>
-        <div id="videoFrame">
-          <div id="videoEmpty">
-            <div class="empty-flame big" aria-hidden="true"></div>
-            <p>The Sanctuary is being prepared.<br><span>Return soon for the daily word &amp; live worship.</span></p>
+        <div id="mapStage">
+          <canvas id="mapCanvas"></canvas>
+          <div id="mapTip" hidden></div>
+          <div id="mapLoading"><div class="empty-flame" aria-hidden="true"></div>charting the earth…</div>
+        </div>
+        <div class="watch-foot">
+          <div class="legend">
+            <span class="lg"><i class="dot gold"></i> prayer rising</span>
+            <span class="lg"><i class="dot violet"></i> soul present</span>
+            <span class="lg"><i class="dot bright"></i> you</span>
           </div>
+          <button id="geoBtn" class="ghost-btn"><svg class="icon"><use href="#i-pin"/></svg><span id="geoBtnLabel">Shine my light on the map</span></button>
         </div>
-        <p class="sanctum-note">Daily word &amp; live gatherings from KingdomCovers. When the flame above reads <b>LIVE</b>, we are praying together in real time.</p>
-      </div>
-
-      <div id="adminPanel" class="glass" hidden>
-        <div class="composer-head"><span class="flame" aria-hidden="true"></span> Keeper's Keys <small>(only you can see this)</small></div>
-        <label class="admin-label">Video / stream link (YouTube, YouTube Live, Twitch, TikTok)</label>
-        <input id="adminUrl" type="url" placeholder="https://www.youtube.com/watch?v=…  or  https://youtube.com/live/…">
-        <label class="admin-label">Title shown above the video</label>
-        <input id="adminTitle" type="text" maxlength="120" placeholder="Tonight: Praying over every request on the altar">
-        <label class="anon">
-          <input type="checkbox" id="adminLive">
-          <span>We are <b>LIVE</b> right now</span>
-        </label>
-        <button id="adminSave" class="gold-btn big">Update the Sanctuary</button>
+        <p class="watch-privacy">Your light is placed at city level only — never your exact location. You can dim it any time.</p>
       </div>
     </section>
   </main>
 
+  <!-- ✦ MESSAGES — send a word -->
+  <aside id="dmPanel" hidden>
+    <div class="dm-head">
+      <button id="dmBack" class="icon-btn sm" hidden><svg class="icon"><use href="#i-back"/></svg></button>
+      <div class="dm-title">
+        <b id="dmTitle">Words</b>
+        <span id="dmSub">private encouragement between saints</span>
+      </div>
+      <button id="dmClose" class="icon-btn sm"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="dmThreads"></div>
+    <div id="dmConvo" hidden>
+      <div id="dmMsgs"></div>
+      <div class="dm-form">
+        <input id="dmInput" maxlength="1000" placeholder="Send a word of encouragement…">
+        <button id="dmSend" class="comment-send" title="Send"><svg class="icon"><use href="#i-send"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
   <footer>
     <p class="foot-verse">“Bear one another’s burdens, and so fulfill the law of Christ.” — Galatians 6:2</p>
     <p class="foot-brand">
-      <span class="brand-mark small">✝</span> THE PRAYER REALM · a sanctuary by
+      <span class="brand-mark small"><svg class="icon"><use href="#i-cross"/></svg></span> THE PRAYER REALM · a sanctuary by
       <a id="shopLink" href="https://www.tiktok.com/@kingdomcovers" target="_blank" rel="noopener">KingdomCovers</a>
     </p>
     <p class="foot-small">Built on prayer. Be kind — every request here belongs to a real soul.</p>
