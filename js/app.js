@@ -1,12 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════
    THE PRAYER REALM — engine
-   Auth, live data, rendering, and the atmosphere of the realm.
+   Auth, live data, the altar, the watch (live world map),
+   private words (messages), and the atmosphere of the realm.
 
-   Runs in two modes, same experience either way:
-   • LIVE — Firebase configured in js/config.js → real Google login,
+   Two modes, same experience:
+   • LIVE — Firebase configured in js/config.js → Google login,
      real-time shared database, protected by firestore.rules.
-   • DEMO — no Firebase yet → everything works on this device only,
-     so the realm can be felt before it is connected.
+   • DEMO — no Firebase yet → everything works on this device only.
    ═══════════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -16,6 +16,7 @@ const CFG = window.REALM_CONFIG || { firebase: {}, adminEmails: [], shopUrl: '#'
 /* ── tiny DOM helpers ─────────────────────────────────────────────── */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function el(tag, attrs = {}, ...kids) {
   const n = document.createElement(tag);
@@ -32,6 +33,16 @@ function el(tag, attrs = {}, ...kids) {
     n.append(kid.nodeType ? kid : document.createTextNode(kid)); // text nodes only → XSS-safe
   }
   return n;
+}
+
+/* hand-forged icon (SVG sprite reference) — the realm uses no emoji */
+function icon(name, cls = 'icon') {
+  const s = document.createElementNS(SVG_NS, 'svg');
+  s.setAttribute('class', cls);
+  const u = document.createElementNS(SVG_NS, 'use');
+  u.setAttribute('href', '#i-' + name);
+  s.append(u);
+  return s;
 }
 
 function timeAgo(ms) {
@@ -64,16 +75,16 @@ function tween(node, to) {
 
 /* ── realm constants ──────────────────────────────────────────────── */
 const CATS = {
-  healing:    { label: 'Healing',    icon: '🌿' },
-  family:     { label: 'Family',     icon: '🏠' },
-  faith:      { label: 'Faith',      icon: '✝️' },
-  finances:   { label: 'Provision',  icon: '🍞' },
-  protection: { label: 'Protection', icon: '🛡️' },
-  guidance:   { label: 'Guidance',   icon: '🕯️' },
-  praise:     { label: 'Praise',     icon: '👑' },
-  other:      { label: 'Other',      icon: '🕊️' },
+  healing:    { label: 'Healing',    icon: 'pulse' },
+  family:     { label: 'Family',     icon: 'home' },
+  faith:      { label: 'Faith',      icon: 'cross' },
+  finances:   { label: 'Provision',  icon: 'wheat' },
+  protection: { label: 'Protection', icon: 'shield' },
+  guidance:   { label: 'Guidance',   icon: 'compass' },
+  praise:     { label: 'Praise',     icon: 'crown' },
+  other:      { label: 'Other',      icon: 'dove' },
 };
-const REACTS = { love: '❤️', dove: '🕊️', cross: '✝️', fire: '🔥' };
+const REACTS = { love: 'heart', dove: 'dove', cross: 'cross', fire: 'flame' };
 const EMPTY_REACTIONS = () => ({ love: [], dove: [], cross: [], fire: [] });
 
 const VERSES = [
@@ -87,26 +98,55 @@ const VERSES = [
   { t: '“The LORD is near to all who call on him, to all who call on him in truth.”', r: 'Psalm 145:18' },
 ];
 
+/* coarse timezone → coordinates, the no-permission fallback for the map */
+const TZ_COORDS = {
+  'America/New_York': [40.7, -74], 'America/Chicago': [41.9, -87.6], 'America/Denver': [39.7, -105],
+  'America/Phoenix': [33.4, -112], 'America/Los_Angeles': [34.1, -118.2], 'America/Anchorage': [61.2, -149.9],
+  'America/Toronto': [43.7, -79.4], 'America/Vancouver': [49.3, -123.1], 'America/Mexico_City': [19.4, -99.1],
+  'America/Bogota': [4.7, -74.1], 'America/Lima': [-12, -77], 'America/Sao_Paulo': [-23.5, -46.6],
+  'America/Argentina/Buenos_Aires': [-34.6, -58.4], 'America/Santiago': [-33.4, -70.7],
+  'Europe/London': [51.5, -.1], 'Europe/Dublin': [53.3, -6.3], 'Europe/Paris': [48.9, 2.3],
+  'Europe/Madrid': [40.4, -3.7], 'Europe/Lisbon': [38.7, -9.1], 'Europe/Berlin': [52.5, 13.4],
+  'Europe/Rome': [41.9, 12.5], 'Europe/Amsterdam': [52.4, 4.9], 'Europe/Stockholm': [59.3, 18.1],
+  'Europe/Oslo': [59.9, 10.8], 'Europe/Warsaw': [52.2, 21], 'Europe/Athens': [38, 23.7],
+  'Europe/Kyiv': [50.5, 30.5], 'Europe/Moscow': [55.8, 37.6], 'Europe/Istanbul': [41, 28.9],
+  'Africa/Lagos': [6.5, 3.4], 'Africa/Cairo': [30, 31.2], 'Africa/Nairobi': [-1.3, 36.8],
+  'Africa/Johannesburg': [-26.2, 28], 'Africa/Accra': [5.6, -.2],
+  'Asia/Jerusalem': [31.8, 35.2], 'Asia/Dubai': [25.2, 55.3], 'Asia/Riyadh': [24.7, 46.7],
+  'Asia/Karachi': [24.9, 67], 'Asia/Kolkata': [19.1, 72.9], 'Asia/Dhaka': [23.8, 90.4],
+  'Asia/Bangkok': [13.8, 100.5], 'Asia/Jakarta': [-6.2, 106.8], 'Asia/Singapore': [1.35, 103.8],
+  'Asia/Manila': [14.6, 121], 'Asia/Hong_Kong': [22.3, 114.2], 'Asia/Shanghai': [31.2, 121.5],
+  'Asia/Seoul': [37.6, 127], 'Asia/Tokyo': [35.7, 139.7],
+  'Australia/Sydney': [-33.9, 151.2], 'Australia/Melbourne': [-37.8, 145], 'Australia/Perth': [-32, 115.9],
+  'Pacific/Auckland': [-36.8, 174.8], 'Pacific/Honolulu': [21.3, -157.9],
+};
+
 /* ── state ────────────────────────────────────────────────────────── */
 const state = {
-  user: null,            // { uid, name, email, photo, admin }
+  user: null,
   prayers: [],
-  filter: 'all',         // all | mine | answered | <category>
-  sort: 'new',           // new | amens
+  filter: 'all',
+  sort: 'new',
   openComments: new Set(),
-  commentsCache: new Map(),   // prayerId → [comments]
-  commentUnsubs: new Map(),   // prayerId → unsubscribe()
-  sanctuary: null,
+  commentsCache: new Map(),
+  commentUnsubs: new Map(),
+  souls: [],                       // live presence
+  geo: null,                       // {mode:'on'|'off', lat, lng}
+  dm: { threads: [], openId: null, other: null, msgs: [], unsubMsgs: null },
+  loaded: false,
 };
 
 let backend = null;
+
+try { state.geo = JSON.parse(localStorage.getItem('realm.geo')) || { mode: 'off' }; }
+catch { state.geo = { mode: 'off' }; }
 
 /* ═══════════════════════════════════════════════════════════════════
    BACKEND · DEMO (localStorage)
    ═══════════════════════════════════════════════════════════════════ */
 
 function makeLocalBackend() {
-  const KEY = 'prayerRealm.v1';
+  const KEY = 'prayerRealm.v2';
   const USER_KEY = 'prayerRealm.user.v1';
   const now = Date.now();
 
@@ -115,33 +155,50 @@ function makeLocalBackend() {
       { id: 'seed-1', uid: 'keeper', name: 'The Realm Keeper', photo: null, anonymous: false,
         text: 'Welcome to the Prayer Realm, saint. Lay whatever you are carrying on this altar — and take a moment to lift up someone else while you are here. This is a demo prayer; yours will appear above it.',
         category: 'faith', createdAt: now - 86400000 * 2, prayedBy: ['a', 'b', 'c'], prayedCount: 3,
-        reactions: { love: ['a'], dove: ['b'], cross: ['c'], fire: [] }, answered: false, flags: [], commentCount: 1 },
+        reactions: { love: ['a'], dove: ['b'], cross: ['c'], fire: [] }, answered: false, flags: [],
+        commentCount: 1, loc: { lat: 36.2, lng: -86.8 } },
       { id: 'seed-2', uid: 'keeper', name: 'The Realm Keeper', photo: null, anonymous: true,
         text: 'Praying for every single person who finds this place. May you feel Him closer than your own breath.',
         category: 'praise', createdAt: now - 86400000 * 5, prayedBy: ['a'], prayedCount: 1,
-        reactions: { love: [], dove: ['a'], cross: [], fire: ['b'] }, answered: true, flags: [], commentCount: 0 },
+        reactions: { love: [], dove: ['a'], cross: [], fire: ['b'] }, answered: true, flags: [],
+        commentCount: 0, loc: { lat: 31.8, lng: 35.2 } },
     ],
     comments: { 'seed-1': [
       { id: 'c1', uid: 'keeper', name: 'The Realm Keeper', photo: null, anonymous: false,
-        text: 'Standing with you in prayer. 🙏', createdAt: now - 86400000 },
+        text: 'Standing with you in prayer.', createdAt: now - 86400000 },
     ] },
-    sanctuary: { url: '', title: 'The Sanctuary', live: false },
+    dms: {},
   };
 
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY)) || seed; } catch { db = seed; }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage full/blocked */ } };
+  db.dms = db.dms || {};
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage full */ } };
 
   let user = null;
   try { user = JSON.parse(localStorage.getItem(USER_KEY)); } catch { user = null; }
 
-  const userCbs = [], prayerCbs = [], sanctCbs = [];
+  const userCbs = [], prayerCbs = [], soulCbs = [], threadCbs = [];
   const emitUser = () => userCbs.forEach(cb => cb(user));
   const emitPrayers = () => { save(); prayerCbs.forEach(cb => cb([...db.prayers])); };
-  const emitSanct = () => { save(); sanctCbs.forEach(cb => cb({ ...db.sanctuary })); };
-  const commentCbs = new Map(); // prayerId → Set<cb>
+  const commentCbs = new Map();
   const emitComments = id => { save(); (commentCbs.get(id) || []).forEach(cb => cb([...(db.comments[id] || [])])); };
-  const uidGen = () => 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const msgCbs = new Map();
+  const emitMsgs = id => { save(); (msgCbs.get(id) || []).forEach(cb => cb([...(db.dms[id]?.msgs || [])])); };
+  const emitThreads = () => { save(); threadCbs.forEach(cb => cb(Object.values(db.dms).map(t => ({ ...t, msgs: undefined })))); };
+  const uidGen = p => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  /* a handful of souls keeping watch, so the map breathes in demo */
+  const demoSouls = [
+    { uid: 'w1', name: 'A Saint in Nashville', photo: null, lat: 36.2, lng: -86.8 },
+    { uid: 'w2', name: 'A Saint in Jerusalem', photo: null, lat: 31.8, lng: 35.2 },
+    { uid: 'w3', name: 'A Saint in Lagos', photo: null, lat: 6.5, lng: 3.4 },
+    { uid: 'w4', name: 'A Saint in Manila', photo: null, lat: 14.6, lng: 121 },
+    { uid: 'w5', name: 'A Saint in São Paulo', photo: null, lat: -23.5, lng: -46.6 },
+  ].map(s => ({ ...s, lastSeen: Date.now() }));
+  let ownPresence = null;
+  const emitSouls = () => soulCbs.forEach(cb =>
+    cb([...demoSouls, ...(ownPresence ? [ownPresence] : [])].map(s => ({ ...s, lastSeen: Date.now() }))));
 
   return {
     isDemo: true,
@@ -154,14 +211,15 @@ function makeLocalBackend() {
       emitUser();
       toast('Demo sign-in — connect Firebase (SETUP.md) for real Google login.', 'gold');
     },
-    async signOut() { user = null; localStorage.removeItem(USER_KEY); emitUser(); },
+    async signOut() { user = null; localStorage.removeItem(USER_KEY); ownPresence = null; emitUser(); emitSouls(); },
 
     onPrayers(cb) { prayerCbs.push(cb); cb([...db.prayers]); },
-    async addPrayer({ text, category, anonymous }) {
+    async addPrayer({ text, category, anonymous, loc }) {
       db.prayers.unshift({
-        id: uidGen(), uid: user.uid, name: user.name, photo: user.photo, anonymous,
+        id: uidGen('p'), uid: user.uid, name: user.name, photo: user.photo, anonymous,
         text, category, createdAt: Date.now(), prayedBy: [], prayedCount: 0,
         reactions: EMPTY_REACTIONS(), answered: false, flags: [], commentCount: 0,
+        ...(loc ? { loc } : {}),
       });
       emitPrayers();
     },
@@ -187,7 +245,7 @@ function makeLocalBackend() {
     },
     async addComment(id, { text, anonymous }) {
       (db.comments[id] = db.comments[id] || []).push({
-        id: uidGen(), uid: user.uid, name: user.name, photo: user.photo, anonymous,
+        id: uidGen('c'), uid: user.uid, name: user.name, photo: user.photo, anonymous,
         text, createdAt: Date.now(),
       });
       const p = db.prayers.find(p => p.id === id);
@@ -215,9 +273,47 @@ function makeLocalBackend() {
       if (!p.flags.includes(user.uid)) p.flags.push(user.uid);
       emitPrayers();
     },
-    onSanctuary(cb) { sanctCbs.push(cb); cb({ ...db.sanctuary }); },
-    async setSanctuary(s) { db.sanctuary = { ...db.sanctuary, ...s }; emitSanct(); },
     async totalPrayers() { return db.prayers.length; },
+
+    /* presence */
+    onSouls(cb) { soulCbs.push(cb); emitSouls(); },
+    async setPresence({ lat, lng }) {
+      if (!user) return;
+      ownPresence = { uid: user.uid, name: user.name, photo: user.photo,
+                      lat: lat ?? null, lng: lng ?? null, lastSeen: Date.now() };
+      emitSouls();
+    },
+
+    /* private words */
+    onThreads(cb) { threadCbs.push(cb); emitThreads(); return () => {}; },
+    async ensureThread(other) {
+      const id = [user.uid, other.uid].sort().join('_');
+      if (!db.dms[id]) {
+        db.dms[id] = { id, users: [user.uid, other.uid].sort(),
+          names: { [user.uid]: user.name, [other.uid]: other.name },
+          photos: { [user.uid]: user.photo, [other.uid]: other.photo || null },
+          lastText: '', lastFrom: '', updatedAt: Date.now(), readAt: {}, msgs: [] };
+        emitThreads();
+      }
+      return id;
+    },
+    onMessages(id, cb) {
+      if (!msgCbs.has(id)) msgCbs.set(id, new Set());
+      msgCbs.get(id).add(cb);
+      cb([...(db.dms[id]?.msgs || [])]);
+      return () => msgCbs.get(id)?.delete(cb);
+    },
+    async sendMessage(id, text) {
+      const t = db.dms[id]; if (!t) return;
+      t.msgs.push({ id: uidGen('m'), from: user.uid, text, createdAt: Date.now() });
+      t.lastText = text.slice(0, 90); t.lastFrom = user.uid; t.updatedAt = Date.now();
+      t.readAt[user.uid] = Date.now();
+      emitMsgs(id); emitThreads();
+    },
+    async markRead(id) {
+      const t = db.dms[id]; if (!t) return;
+      t.readAt[user.uid] = Date.now() + 1; emitThreads();
+    },
   };
 }
 
@@ -241,7 +337,6 @@ async function makeFirebaseBackend() {
   const isAdminEmail = email => (CFG.adminEmails || []).map(e => e.toLowerCase()).includes((email || '').toLowerCase());
   const tsToMs = ts => (ts && typeof ts.toMillis === 'function') ? ts.toMillis() : Date.now();
 
-  // Complete a redirect-based sign-in if one is pending (mobile fallback path).
   A.getRedirectResult(auth).catch(() => {});
 
   const normalize = d => {
@@ -253,6 +348,7 @@ async function makeFirebaseBackend() {
       prayedCount: x.prayedCount || 0,
       reactions: { ...EMPTY_REACTIONS(), ...(x.reactions || {}) },
       answered: !!x.answered, flags: x.flags || [], commentCount: x.commentCount || 0,
+      loc: (x.loc && typeof x.loc.lat === 'number') ? { lat: x.loc.lat, lng: x.loc.lng } : null,
     };
   };
 
@@ -286,13 +382,14 @@ async function makeFirebaseBackend() {
       F.onSnapshot(q, snap => cb(snap.docs.map(normalize)),
         err => { console.error(err); toast('Could not reach the altar — check your connection.', 'rose'); });
     },
-    async addPrayer({ text, category, anonymous }) {
+    async addPrayer({ text, category, anonymous, loc }) {
       const u = auth.currentUser;
       await F.addDoc(F.collection(db, 'prayers'), {
         uid: u.uid, name: u.displayName || 'A Saint', photo: u.photoURL || null,
         anonymous, text, category, createdAt: F.serverTimestamp(),
         prayedBy: [], prayedCount: 0, reactions: EMPTY_REACTIONS(),
         answered: false, flags: [], commentCount: 0,
+        ...(loc ? { loc } : {}),
       });
     },
     async prayFor(id) {
@@ -332,7 +429,6 @@ async function makeFirebaseBackend() {
       });
     },
     async deletePrayer(id) {
-      // best-effort: clear comments first so no orphans remain
       try {
         const snap = await F.getDocs(F.query(F.collection(db, 'prayers', id, 'comments'), F.limit(200)));
         await Promise.all(snap.docs.map(d => F.deleteDoc(d.ref)));
@@ -342,33 +438,100 @@ async function makeFirebaseBackend() {
     async flagPrayer(id) {
       await F.updateDoc(F.doc(db, 'prayers', id), { flags: F.arrayUnion(auth.currentUser.uid) });
     },
-    onSanctuary(cb) {
-      F.onSnapshot(F.doc(db, 'settings', 'sanctuary'),
-        snap => cb(snap.exists() ? snap.data() : { url: '', title: 'The Sanctuary', live: false }),
-        err => console.error(err));
-    },
-    async setSanctuary(s) {
-      await F.setDoc(F.doc(db, 'settings', 'sanctuary'),
-        { ...s, updatedAt: F.serverTimestamp() }, { merge: true });
-    },
     async totalPrayers() {
       try {
         const c = await F.getCountFromServer(F.collection(db, 'prayers'));
         return c.data().count;
       } catch { return null; }
     },
+
+    /* presence — each signed-in soul keeps a single small doc alive */
+    onSouls(cb) {
+      const q = F.query(F.collection(db, 'presence'), F.orderBy('lastSeen', 'desc'), F.limit(300));
+      F.onSnapshot(q, snap => cb(snap.docs.map(d => {
+        const x = d.data();
+        return { uid: d.id, name: x.name || 'A Saint', photo: x.photo || null,
+                 lat: typeof x.lat === 'number' ? x.lat : null,
+                 lng: typeof x.lng === 'number' ? x.lng : null,
+                 lastSeen: tsToMs(x.lastSeen) };
+      })), err => console.error(err));
+    },
+    async setPresence({ lat, lng }) {
+      const u = auth.currentUser; if (!u) return;
+      await F.setDoc(F.doc(db, 'presence', u.uid), {
+        uid: u.uid, name: u.displayName || 'A Saint', photo: u.photoURL || null,
+        lat: lat ?? null, lng: lng ?? null, lastSeen: F.serverTimestamp(),
+      }).catch(() => {});
+    },
+
+    /* private words */
+    onThreads(cb) {
+      const u = auth.currentUser; if (!u) return () => {};
+      const q = F.query(F.collection(db, 'dms'), F.where('users', 'array-contains', u.uid), F.limit(60));
+      return F.onSnapshot(q, snap => cb(snap.docs.map(d => {
+        const x = d.data();
+        const readAt = {};
+        for (const [k, v] of Object.entries(x.readAt || {})) readAt[k] = tsToMs(v);
+        return { id: d.id, users: x.users || [], names: x.names || {}, photos: x.photos || {},
+                 lastText: x.lastText || '', lastFrom: x.lastFrom || '',
+                 updatedAt: tsToMs(x.updatedAt), readAt };
+      })), err => console.error(err));
+    },
+    async ensureThread(other) {
+      const u = auth.currentUser;
+      const users = [u.uid, other.uid].sort();
+      const id = users.join('_');
+      const ref = F.doc(db, 'dms', id);
+      const existing = await F.getDoc(ref).catch(() => null);
+      if (!existing || !existing.exists()) {
+        await F.setDoc(ref, {
+          users,
+          names: { [u.uid]: u.displayName || 'A Saint', [other.uid]: other.name || 'A Saint' },
+          photos: { [u.uid]: u.photoURL || null, [other.uid]: other.photo || null },
+          lastText: '', lastFrom: '', updatedAt: F.serverTimestamp(), readAt: {},
+        });
+      }
+      return id;
+    },
+    onMessages(id, cb) {
+      const q = F.query(F.collection(db, 'dms', id, 'messages'), F.orderBy('createdAt', 'asc'), F.limit(200));
+      return F.onSnapshot(q, snap => cb(snap.docs.map(d => {
+        const x = d.data();
+        return { id: d.id, from: x.from, text: x.text || '', createdAt: tsToMs(x.createdAt) };
+      })), err => console.error(err));
+    },
+    async sendMessage(id, text) {
+      const u = auth.currentUser;
+      await F.addDoc(F.collection(db, 'dms', id, 'messages'), {
+        from: u.uid, text, createdAt: F.serverTimestamp(),
+      });
+      await F.updateDoc(F.doc(db, 'dms', id), {
+        lastText: text.slice(0, 90), lastFrom: u.uid,
+        updatedAt: F.serverTimestamp(), [`readAt.${u.uid}`]: F.serverTimestamp(),
+      }).catch(() => {});
+    },
+    async markRead(id) {
+      const u = auth.currentUser; if (!u) return;
+      await F.updateDoc(F.doc(db, 'dms', id), { [`readAt.${u.uid}`]: F.serverTimestamp() }).catch(() => {});
+    },
   };
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   RENDERING
+   THE ALTAR — rendering
    ═══════════════════════════════════════════════════════════════════ */
 
 function avatarNode(photo, anonymous, big = true) {
   const cls = big ? 'pc-avatar' : 'comment-avatar';
-  if (anonymous) return el('div', { class: `${cls} anon-halo`, title: 'Anonymous' }, '🕊');
+  if (anonymous) {
+    const n = el('div', { class: `${cls} anon-halo`, title: 'Anonymous' });
+    n.append(icon('dove', big ? 'icon' : 'icon sm'));
+    return n;
+  }
   if (photo) return el('img', { class: cls, src: photo, alt: '', referrerPolicy: 'no-referrer' });
-  return el('div', { class: `${cls} anon-halo` }, '✝');
+  const n = el('div', { class: `${cls} anon-halo` });
+  n.append(icon('cross', big ? 'icon' : 'icon sm'));
+  return n;
 }
 
 function displayName(p) { return p.anonymous ? 'Anonymous Saint' : p.name; }
@@ -376,14 +539,14 @@ function displayName(p) { return p.anonymous ? 'Anonymous Saint' : p.name; }
 function buildFilterChips() {
   const wrap = $('#filterChips');
   wrap.replaceChildren();
-  const mk = (key, label, gold = false) => el('button', {
+  const mk = (key, label, ic, gold = false) => el('button', {
     class: 'chip' + (state.filter === key ? (gold ? ' gold-on' : ' on') : ''),
     onclick: () => { state.filter = key; renderPrayers(); buildFilterChips(); },
-  }, label);
-  wrap.append(mk('all', '✦ All'));
-  if (state.user) wrap.append(mk('mine', '🤍 Mine'));
-  wrap.append(mk('answered', '✨ Answered', true));
-  for (const [k, c] of Object.entries(CATS)) wrap.append(mk(k, `${c.icon} ${c.label}`));
+  }, icon(ic), label);
+  wrap.append(mk('all', 'All', 'spark'));
+  if (state.user) wrap.append(mk('mine', 'Mine', 'user'));
+  wrap.append(mk('answered', 'Answered', 'check', true));
+  for (const [k, c] of Object.entries(CATS)) wrap.append(mk(k, c.label, c.icon));
 }
 
 function buildCatPick() {
@@ -391,13 +554,13 @@ function buildCatPick() {
   wrap.replaceChildren();
   for (const [k, c] of Object.entries(CATS)) {
     wrap.append(el('button', {
-      class: 'chip' + (wrap.dataset.sel === k ? ' on' : ''), type: 'button',
+      class: 'chip', type: 'button',
       onclick: e => {
         wrap.dataset.sel = k;
         $$('.chip', wrap).forEach(x => x.classList.remove('on'));
         e.currentTarget.classList.add('on');
       },
-    }, `${c.icon} ${c.label}`));
+    }, icon(c.icon), c.label));
   }
   wrap.dataset.sel = wrap.dataset.sel || 'other';
   const idx = Object.keys(CATS).indexOf(wrap.dataset.sel);
@@ -415,14 +578,17 @@ function visiblePrayers() {
   return list;
 }
 
-function reactCounts(p) {
-  return Object.keys(REACTS).reduce((n, k) => n + (p.reactions[k]?.length || 0), 0);
-}
-
 function renderPrayers() {
   const grid = $('#prayerGrid');
 
-  // preserve a comment draft mid-typing across live re-renders
+  if (!state.loaded) {
+    grid.replaceChildren(...[0, 1, 2].map(() => {
+      const sk = el('div', { class: 'glass skel' }); sk.append(el('i'));
+      return sk;
+    }));
+    return;
+  }
+
   let draft = null;
   const ae = document.activeElement;
   if (ae && ae.classList?.contains('comment-input') && ae.closest('.prayer-card')) {
@@ -448,21 +614,21 @@ function prayerCard(p, i) {
   const prayed = u && p.prayedBy.includes(u.uid);
   const cat = CATS[p.category] || CATS.other;
 
-  /* head */
   const head = el('div', { class: 'pc-head' },
     avatarNode(p.photo, p.anonymous),
     el('div', { class: 'pc-who' },
       el('div', { class: 'pc-name' }, displayName(p)),
       el('div', { class: 'pc-meta' },
-        el('span', { class: 'pc-cat' }, `${cat.icon} ${cat.label}`),
+        el('span', { class: 'pc-cat' }, icon(cat.icon), cat.label),
         el('time', {}, timeAgo(p.createdAt)),
-        admin && p.flags.length ? el('span', { class: 'flag-count', title: 'Reported by visitors' }, `🚩 ${p.flags.length}`) : null,
+        admin && p.flags.length
+          ? el('span', { class: 'flag-count', title: 'Reported by visitors' }, icon('flag'), String(p.flags.length))
+          : null,
       ),
     ),
-    p.answered ? el('span', { class: 'answered-badge' }, '✨ ANSWERED') : null,
+    p.answered ? el('span', { class: 'answered-badge' }, icon('check'), 'ANSWERED') : null,
   );
 
-  /* amen */
   const amenBtn = el('button', {
     class: 'amen-btn' + (prayed ? ' prayed' : ''),
     title: prayed ? 'You have lifted this prayer' : 'Lift this prayer up',
@@ -474,11 +640,10 @@ function prayerCard(p, i) {
       e.currentTarget.classList.add('prayed');
       try { await backend.prayFor(p.id); } catch (err) { console.error(err); }
     },
-  }, prayed ? '🙏 Amen' : '🙏 I prayed',
+  }, icon('hands'), prayed ? 'Amen' : 'I prayed',
      el('span', { class: 'cnt' }, p.prayedCount ? String(p.prayedCount) : ''));
 
-  /* reactions */
-  const reactBtns = Object.entries(REACTS).map(([k, emoji]) => {
+  const reactBtns = Object.entries(REACTS).map(([k, ic]) => {
     const on = u && (p.reactions[k] || []).includes(u.uid);
     const n = (p.reactions[k] || []).length;
     return el('button', {
@@ -487,38 +652,40 @@ function prayerCard(p, i) {
         if (!u) return needSignIn();
         backend.toggleReact(p.id, k, !on).catch(console.error);
       },
-    }, emoji, n ? el('span', { class: 'cnt' }, String(n)) : null);
+    }, icon(ic), n ? el('span', { class: 'cnt' }, String(n)) : null);
   });
 
-  /* comments toggle */
   const isOpen = state.openComments.has(p.id);
   const commentBtn = el('button', {
     class: 'react-btn' + (isOpen ? ' on' : ''), title: 'Words of encouragement',
     onclick: () => toggleComments(p.id),
-  }, '💬', p.commentCount ? el('span', { class: 'cnt' }, String(p.commentCount)) : null);
+  }, icon('chat'), p.commentCount ? el('span', { class: 'cnt' }, String(p.commentCount)) : null);
 
-  /* owner / admin / report tools */
   const tools = el('span', { class: 'pc-tools' });
+  if (u && !mine && !p.anonymous) tools.append(el('button', {
+    class: 'tool-btn', title: `Send ${p.name} a private word`,
+    onclick: () => openWord({ uid: p.uid, name: p.name, photo: p.photo }),
+  }, icon('send'), 'Word'));
   if (mine) tools.append(el('button', {
     class: 'tool-btn', title: p.answered ? 'Unmark answered' : 'Mark as answered',
     onclick: () => backend.markAnswered(p.id, !p.answered).then(() => {
-      if (!p.answered) toast('✨ Glory! Marked as answered.', 'gold');
+      if (!p.answered) toast('Glory! Marked as answered.', 'gold');
     }).catch(console.error),
-  }, p.answered ? '↩ unmark' : '✓ answered'));
+  }, icon('check'), p.answered ? 'unmark' : 'answered'));
   if (mine || admin) tools.append(el('button', {
     class: 'tool-btn danger', title: 'Remove from the altar',
     onclick: () => {
       if (confirm('Remove this prayer from the altar?'))
         backend.deletePrayer(p.id).then(() => toast('Removed from the altar.')).catch(console.error);
     },
-  }, '🗑'));
+  }, icon('trash')));
   if (u && !mine) tools.append(el('button', {
     class: 'tool-btn danger', title: 'Report to the keeper',
     onclick: () => {
       if (confirm('Report this prayer to the keeper of the realm?'))
         backend.flagPrayer(p.id).then(() => toast('Reported. The keeper will review it.')).catch(console.error);
     },
-  }, '🚩'));
+  }, icon('flag')));
 
   const card = el('article', {
     class: 'prayer-card glass' + (p.answered ? ' answered span2' : ''),
@@ -570,7 +737,7 @@ function commentsPanel(p) {
     ),
     (u && (c.uid === u.uid || u.admin || p.uid === u.uid))
       ? el('button', { class: 'tool-btn danger comment-del', title: 'Remove',
-          onclick: () => backend.deleteComment(p.id, c.id).catch(console.error) }, '✕')
+          onclick: () => backend.deleteComment(p.id, c.id).catch(console.error) }, icon('x', 'icon sm'))
       : null,
   ));
 
@@ -587,7 +754,7 @@ function commentsPanel(p) {
       catch (err) { console.error(err); toast('Could not send — try again.', 'rose'); }
     };
     form = el('div', { class: 'comment-form' }, input,
-      el('button', { class: 'comment-send', title: 'Send encouragement', onclick: send }, '🕊'));
+      el('button', { class: 'comment-send', title: 'Send encouragement', onclick: send }, icon('send')));
   } else {
     form = el('div', { class: 'comment-hint' }, 'Sign in with Google to speak encouragement over this prayer.');
   }
@@ -608,71 +775,374 @@ async function updateStats() {
   tween($('#statPrayers'), total == null ? state.prayers.length : total);
 }
 
-/* ── sanctuary ────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   THE WATCH — live world map (dot-matrix earth, beacons of prayer)
+   ═══════════════════════════════════════════════════════════════════ */
 
-function parseVideo(url) {
-  if (!url) return null;
-  const yt = id => `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&color=white`;
-  try {
-    const u = new URL(url.trim());
-    const host = u.hostname.replace(/^www\.|^m\./, '');
-    if (host === 'youtu.be') return yt(u.pathname.slice(1).split('/')[0]);
-    if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
-      if (u.searchParams.get('v')) return yt(u.searchParams.get('v'));
-      const m = u.pathname.match(/\/(?:embed|live|shorts|v)\/([\w-]{6,})/);
-      if (m) return yt(m[1]);
+const Watch = (() => {
+  let started = false, cv, cx, W = 0, H = 0;
+  let mask = null;                 // ImageData of land at MASK_W × MASK_H
+  const MASK_W = 1024, MASK_H = 512;
+  let dots = null;                 // prerendered land-dot layer
+  let beacons = [];                // projected interactive points
+  let hover = null;
+  let t = 0;
+
+  const proj = (lng, lat, w, h) => [ (lng + 180) / 360 * w, (90 - lat) / 180 * h ];
+
+  async function loadLand() {
+    const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')).json();
+    const { feature } = await import('https://cdn.jsdelivr.net/npm/topojson-client@3/+esm');
+    const land = feature(topo, topo.objects.land);
+    const off = el('canvas', { width: MASK_W, height: MASK_H });
+    const oc = off.getContext('2d');
+    oc.fillStyle = '#fff';
+    const geoms = land.type === 'FeatureCollection' ? land.features.map(f => f.geometry) : [land.geometry];
+    for (const g of geoms) {
+      const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+      for (const poly of polys) {
+        oc.beginPath();
+        for (const ring of poly) {
+          ring.forEach(([lng, lat], i) => {
+            const [x, y] = proj(lng, lat, MASK_W, MASK_H);
+            i ? oc.lineTo(x, y) : oc.moveTo(x, y);
+          });
+          oc.closePath();
+        }
+        oc.fill('evenodd');
+      }
     }
-    if (host.endsWith('twitch.tv')) {
-      const chan = u.pathname.split('/').filter(Boolean)[0];
-      if (chan) return `https://player.twitch.tv/?channel=${encodeURIComponent(chan)}&parent=${location.hostname}`;
+    mask = oc.getImageData(0, 0, MASK_W, MASK_H);
+  }
+
+  function landAt(x01, y01) {
+    if (!mask) return false;
+    const mx = Math.min(MASK_W - 1, Math.max(0, Math.round(x01 * MASK_W)));
+    const my = Math.min(MASK_H - 1, Math.max(0, Math.round(y01 * MASK_H)));
+    return mask.data[(my * MASK_W + mx) * 4 + 3] > 100;
+  }
+
+  function buildDots() {
+    if (!W || !H) return;
+    dots = el('canvas', { width: W, height: H });
+    const dc = dots.getContext('2d');
+    const step = Math.max(4.5, W / 165);
+    const r = Math.max(.9, W / 760);
+    for (let y = step / 2; y < H; y += step) {
+      for (let x = step / 2; x < W; x += step) {
+        const isLand = mask ? landAt(x / W, y / H)
+          /* veiled-earth fallback: a graticule of faint dots */
+          : (Math.abs(y / H * 180 - 90) % 15 < 1.2 || Math.abs(x / W * 360 - 180) % 15 < 1.2);
+        if (!isLand) continue;
+        const a = mask ? (.22 + Math.random() * .3) : .12;
+        dc.fillStyle = `rgba(158, 144, 205, ${a})`;
+        dc.beginPath(); dc.arc(x + (Math.random() - .5), y + (Math.random() - .5), r, 0, 7); dc.fill();
+      }
     }
-    if (host.endsWith('tiktok.com')) {
-      const m = u.pathname.match(/video\/(\d+)/);
-      if (m) return `https://www.tiktok.com/embed/v2/${m[1]}`;
+  }
+
+  function rebuildBeacons() {
+    if (!W || !H) return;
+    const me = state.user?.uid;
+    const fresh = Date.now() - 150000;
+    const out = [];
+    for (const p of state.prayers) {
+      if (!p.loc) continue;
+      const [x, y] = proj(p.loc.lng, p.loc.lat, W, H);
+      out.push({ x, y, type: 'prayer', id: p.id, label: displayName(p),
+                 text: p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text,
+                 phase: (p.id.charCodeAt(p.id.length - 1) || 0) % 7 });
     }
-    if (/^https?:$/.test(u.protocol)) return url.trim(); // already an embed link
-  } catch { /* not a url */ }
-  return null;
+    for (const s of state.souls) {
+      if (s.lat == null || s.lastSeen < fresh) continue;
+      const [x, y] = proj(s.lng, s.lat, W, H);
+      out.push({ x, y, type: s.uid === me ? 'me' : 'soul', id: s.uid,
+                 label: s.uid === me ? 'You — keeping watch' : s.name,
+                 text: s.uid === me ? '' : 'keeping watch in the realm', phase: x % 7 });
+    }
+    beacons = out;
+  }
+
+  function frame() {
+    requestAnimationFrame(frame);
+    if (!started || document.hidden || !cx) return;
+    t += .016;
+    cx.clearRect(0, 0, W, H);
+    if (dots) {
+      cx.globalAlpha = .85 + Math.sin(t * .6) * .12;
+      cx.drawImage(dots, 0, 0);
+      cx.globalAlpha = 1;
+    }
+    /* slow scanning light across the earth */
+    const sx = ((t * 26) % (W * 1.6)) - W * .3;
+    const grad = cx.createLinearGradient(sx - 130, 0, sx + 130, 0);
+    grad.addColorStop(0, 'rgba(243,201,105,0)');
+    grad.addColorStop(.5, 'rgba(243,201,105,.05)');
+    grad.addColorStop(1, 'rgba(243,201,105,0)');
+    cx.fillStyle = grad;
+    cx.fillRect(0, 0, W, H);
+
+    for (const b of beacons) {
+      const pulse = .5 + .5 * Math.sin(t * 2.2 + b.phase);
+      const base = b.type === 'prayer' ? [243, 201, 105] : b.type === 'me' ? [255, 250, 240] : [159, 139, 255];
+      const r = (b.type === 'me' ? 4 : 3) + pulse * 1.6 + (hover === b ? 1.5 : 0);
+      const g = cx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r * 4);
+      g.addColorStop(0, `rgba(${base[0]},${base[1]},${base[2]},.9)`);
+      g.addColorStop(.35, `rgba(${base[0]},${base[1]},${base[2]},.35)`);
+      g.addColorStop(1, `rgba(${base[0]},${base[1]},${base[2]},0)`);
+      cx.fillStyle = g;
+      cx.beginPath(); cx.arc(b.x, b.y, r * 4, 0, 7); cx.fill();
+      cx.fillStyle = `rgba(255,255,255,${.75 + pulse * .25})`;
+      cx.beginPath(); cx.arc(b.x, b.y, r * .42, 0, 7); cx.fill();
+      /* rising ring every few seconds */
+      const ring = ((t * .55 + b.phase) % 3);
+      if (ring < 1.1) {
+        cx.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${.4 * (1.1 - ring)})`;
+        cx.lineWidth = 1.2;
+        cx.beginPath(); cx.arc(b.x, b.y, r + ring * 16, 0, 7); cx.stroke();
+      }
+    }
+  }
+
+  function size() {
+    const stage = $('#mapStage');
+    const rect = stage.getBoundingClientRect();
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = Math.round(rect.width); H = Math.round(rect.height);
+    cv.width = W * dpr; cv.height = H * dpr;
+    cx = cv.getContext('2d');
+    cx.scale(dpr, dpr);
+    buildDots(); rebuildBeacons();
+  }
+
+  function pick(mx, my) {
+    let best = null, bd = 18;
+    for (const b of beacons) {
+      const d = Math.hypot(b.x - mx, b.y - my);
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  async function start() {
+    if (started) return;
+    started = true;
+    cv = $('#mapCanvas');
+    try { await loadLand(); } catch (e) { console.warn('land veiled:', e); }
+    $('#mapLoading').classList.add('gone');
+    size();
+    addEventListener('resize', size);
+    const tip = $('#mapTip');
+    cv.addEventListener('pointermove', e => {
+      const r = cv.getBoundingClientRect();
+      hover = pick(e.clientX - r.left, e.clientY - r.top);
+      if (hover) {
+        tip.hidden = false;
+        tip.style.left = hover.x + 'px';
+        tip.style.top = hover.y + 'px';
+        tip.replaceChildren(el('b', {}, hover.label), el('span', {}, hover.text || ''));
+        cv.style.cursor = hover.type === 'prayer' ? 'pointer' : 'crosshair';
+      } else { tip.hidden = true; cv.style.cursor = 'crosshair'; }
+    });
+    cv.addEventListener('pointerleave', () => { hover = null; tip.hidden = true; });
+    cv.addEventListener('click', () => {
+      if (hover?.type === 'prayer') {
+        switchRoom('altar');
+        const card = $(`.prayer-card[data-id="${hover.id}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.animate([
+            { boxShadow: '0 0 0 rgba(243,201,105,0)' },
+            { boxShadow: '0 0 60px rgba(243,201,105,.55)' },
+            { boxShadow: '0 0 0 rgba(243,201,105,0)' },
+          ], { duration: 1800, easing: 'ease-out' });
+        }
+      }
+    });
+    frame();
+  }
+
+  return { start, refresh: rebuildBeacons };
+})();
+
+/* ── presence: my light on the map ────────────────────────────────── */
+
+let presenceTimer = null;
+
+function saveGeo() { try { localStorage.setItem('realm.geo', JSON.stringify(state.geo)); } catch {} }
+
+function geoLabel() {
+  $('#geoBtnLabel').textContent = state.geo.mode === 'on' ? 'Dim my light' : 'Shine my light on the map';
+  $('#geoBtn').classList.toggle('lit', state.geo.mode === 'on');
 }
 
-function renderSanctuary() {
-  const s = state.sanctuary || { url: '', title: 'The Sanctuary', live: false };
-  $('#liveBadge').hidden = !s.live;
-  $('#sanctumTitle').textContent = s.title || 'The Sanctuary';
+async function acquireGeo() {
+  const round1 = v => Math.round(v * 10) / 10; // ~11km — city level, never exact
+  const fromTz = () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (TZ_COORDS[tz]) return { lat: TZ_COORDS[tz][0], lng: TZ_COORDS[tz][1] };
+    } catch {}
+    return null;
+  };
+  const gps = await new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => res({ lat: round1(pos.coords.latitude), lng: round1(pos.coords.longitude) }),
+      () => res(null), { timeout: 8000, maximumAge: 600000 });
+  });
+  return gps || fromTz();
+}
 
-  const frame = $('#videoFrame');
-  const embed = parseVideo(s.url);
-  const current = frame.querySelector('iframe');
-  if (embed) {
-    if (!current || current.src !== embed) {
-      frame.replaceChildren(el('iframe', {
-        src: embed, title: s.title || 'Sanctuary video', allowFullscreen: true,
-        allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
-        referrerPolicy: 'strict-origin-when-cross-origin',
-      }));
-    }
-  } else {
-    frame.replaceChildren($('#videoEmpty') || el('div', { id: 'videoEmpty' },
-      el('div', { class: 'empty-flame big' }),
-      el('p', {}, 'The Sanctuary is being prepared.', el('br'), el('span', {}, 'Return soon for the daily word & live worship.'))));
-    $('#videoEmpty').hidden = false;
-  }
+function beatPresence() {
+  if (!state.user || !backend) return;
+  const loc = state.geo.mode === 'on' ? { lat: state.geo.lat, lng: state.geo.lng } : { lat: null, lng: null };
+  backend.setPresence(loc);
+}
 
-  // keeper panel reflects current values (without clobbering active edits)
-  if (state.user?.admin) {
-    const url = $('#adminUrl'), title = $('#adminTitle'), live = $('#adminLive');
-    if (document.activeElement !== url) url.value = s.url || '';
-    if (document.activeElement !== title) title.value = s.title || '';
-    live.checked = !!s.live;
+function startPresence() {
+  stopPresence();
+  beatPresence();
+  presenceTimer = setInterval(beatPresence, 60000);
+}
+function stopPresence() { if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null; } }
+
+function updateSouls() {
+  const fresh = Date.now() - 150000;
+  const live = state.souls.filter(s => s.lastSeen >= fresh);
+  const n = Math.max(1, live.length + (state.user && !live.some(s => s.uid === state.user.uid) ? 1 : 0));
+  $('#soulsCount').textContent = String(n);
+  Watch.refresh();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WORDS — private messages between saints
+   ═══════════════════════════════════════════════════════════════════ */
+
+let threadsUnsub = null;
+
+function otherOf(t) {
+  const me = state.user?.uid;
+  const uid = (t.users || []).find(x => x !== me) || '';
+  return { uid, name: t.names?.[uid] || 'A Saint', photo: t.photos?.[uid] || null };
+}
+
+function threadUnread(t) {
+  const me = state.user?.uid;
+  return t.lastFrom && t.lastFrom !== me && (!t.readAt?.[me] || t.readAt[me] < t.updatedAt);
+}
+
+function renderDmDot() {
+  $('#dmDot').hidden = !state.dm.threads.some(threadUnread);
+}
+
+function renderThreads() {
+  const wrap = $('#dmThreads');
+  const list = [...state.dm.threads].sort((a, b) => b.updatedAt - a.updatedAt);
+  if (!list.length) {
+    wrap.replaceChildren(el('div', { class: 'dm-empty' },
+      'No words yet. Open a prayer on the altar and tap "Word" to privately encourage its author.'));
+    return;
   }
+  wrap.replaceChildren(...list.map(t => {
+    const o = otherOf(t);
+    const unread = threadUnread(t);
+    const av = o.photo
+      ? el('img', { src: o.photo, alt: '', referrerPolicy: 'no-referrer' })
+      : (() => { const d = el('div', { class: 'anon-halo' }); d.append(icon('cross')); return d; })();
+    return el('button', { class: 'dm-thread' + (unread ? ' unread' : ''), onclick: () => openThreadUI(t.id, o) },
+      av,
+      el('div', { class: 'dm-t-body' },
+        el('div', { class: 'dm-t-name' }, o.name, el('time', {}, timeAgo(t.updatedAt))),
+        el('div', { class: 'dm-t-last' }, t.lastText || 'Say the first word…'),
+      ),
+      unread ? el('span', { class: 'dm-unread' }) : null,
+    );
+  }));
+}
+
+function renderMsgs() {
+  const wrap = $('#dmMsgs');
+  const me = state.user?.uid;
+  wrap.replaceChildren(...state.dm.msgs.map(m =>
+    el('div', { class: 'dm-msg ' + (m.from === me ? 'mine' : 'theirs') },
+      m.text, el('time', {}, timeAgo(m.createdAt)))));
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function openPanel() {
+  $('#dmPanel').hidden = false;
+  showThreadList();
+}
+function closePanel() {
+  $('#dmPanel').hidden = true;
+  closeThreadUI();
+}
+function showThreadList() {
+  closeThreadUI();
+  $('#dmTitle').textContent = 'Words';
+  $('#dmSub').textContent = 'private encouragement between saints';
+  $('#dmBack').hidden = true;
+  $('#dmThreads').style.display = '';
+  $('#dmConvo').hidden = true;
+  renderThreads();
+}
+function closeThreadUI() {
+  state.dm.openId = null;
+  state.dm.unsubMsgs?.();
+  state.dm.unsubMsgs = null;
+  state.dm.msgs = [];
+}
+function openThreadUI(id, other) {
+  closeThreadUI();
+  state.dm.openId = id;
+  state.dm.other = other;
+  $('#dmTitle').textContent = other.name;
+  $('#dmSub').textContent = 'a private word';
+  $('#dmBack').hidden = false;
+  $('#dmThreads').style.display = 'none';
+  $('#dmConvo').hidden = false;
+  renderMsgs();
+  state.dm.unsubMsgs = backend.onMessages(id, list => {
+    if (state.dm.openId !== id) return;
+    state.dm.msgs = list;
+    renderMsgs();
+    backend.markRead(id);
+  });
+  backend.markRead(id);
+  setTimeout(() => $('#dmInput').focus(), 60);
+}
+
+async function openWord(other) {
+  if (!state.user) return needSignIn();
+  try {
+    const id = await backend.ensureThread(other);
+    openPanel();
+    openThreadUI(id, other);
+  } catch (e) { console.error(e); toast('Could not open the conversation — try again.', 'rose'); }
+}
+
+function subscribeThreads() {
+  threadsUnsub?.();
+  threadsUnsub = null;
+  state.dm.threads = [];
+  renderDmDot();
+  if (!state.user) return;
+  threadsUnsub = backend.onThreads(list => {
+    state.dm.threads = list;
+    renderDmDot();
+    if (!$('#dmPanel').hidden && state.dm.openId == null) renderThreads();
+  });
 }
 
 /* ── auth-dependent chrome ────────────────────────────────────────── */
 
 function renderAuth() {
   const u = state.user;
-  $('#authBtn').textContent = u ? 'Leave quietly' : 'Enter with Google';
+  const authBtn = $('#authBtn');
+  authBtn.replaceChildren(icon('google'), el('span', {}, u ? 'Leave quietly' : 'Enter with Google'));
   $('#userChip').hidden = !u;
+  $('#dmBtn').hidden = !u;
   if (u) {
     $('#userName').textContent = u.name;
     const ph = $('#userPhoto');
@@ -682,14 +1152,13 @@ function renderAuth() {
   $('#submitPrayer').style.display = u ? '' : 'none';
   $('.composer-row.space .anon').style.visibility = u ? 'visible' : 'hidden';
   $('#composerLocked').hidden = !!u;
-  $('#adminPanel').hidden = !(u && u.admin);
   buildFilterChips();
   renderPrayers();
-  renderSanctuary();
+  geoLabel();
 }
 
 function needSignIn() {
-  toast('Enter with Google first, saint. 🙏', 'gold');
+  toast('Enter with Google first, saint.', 'gold');
   $('#authBtn').animate(
     [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
     { duration: 500, easing: 'ease-out' });
@@ -705,7 +1174,6 @@ function startSky() {
   if (REDUCED) return;
   const small = innerWidth < 720;
 
-  /* stars — fixed, twinkling */
   const sc = $('#skyStars'), sx = sc.getContext('2d');
   let stars = [];
   const seedStars = () => {
@@ -718,7 +1186,6 @@ function startSky() {
     }));
   };
 
-  /* embers — golden, ascending (prayers rising) */
   const ec = $('#skyEmbers'), ex = ec.getContext('2d');
   let embers = [];
   const newEmber = () => ({
@@ -777,9 +1244,9 @@ function startHalo() {
 
 function burst(x, y) {
   if (REDUCED) return;
-  const glyphs = ['✦', '✧', '·', '+', '🕊'];
   for (let i = 0; i < 9; i++) {
-    const s = el('span', { class: 'spark' }, glyphs[Math.floor(Math.random() * glyphs.length)]);
+    const s = el('span', { class: 'spark' });
+    s.append(icon(Math.random() < .3 ? 'dove' : 'spark', 'icon sm'));
     s.style.left = x + (Math.random() * 36 - 18) + 'px';
     s.style.top = y + 'px';
     document.body.append(s);
@@ -803,8 +1270,6 @@ class Ambience {
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 850; lp.Q.value = .4;
       master.connect(lp).connect(ctx.destination);
-
-      // A minor-9-ish drone: A2 E3 A3 C4 E4 + a high shimmer
       const freqs = [110, 164.81, 220, 261.63, 329.63, 880];
       freqs.forEach((f, i) => {
         const osc = ctx.createOscillator();
@@ -838,8 +1303,6 @@ function setSound(on, fromGesture = false) {
   if (!on) ambience.stop();
 }
 
-/* ── verse rotator ────────────────────────────────────────────────── */
-
 function startVerses() {
   const node = $('#verse');
   let i = Math.floor(Math.random() * VERSES.length);
@@ -868,11 +1331,16 @@ function isInAppBrowser() {
   return /TikTok|musical_ly|Instagram|FBAN|FBAV|Line\/|GSA\//i.test(navigator.userAgent);
 }
 
+function switchRoom(room) {
+  $$('.room-tab').forEach(tb => tb.classList.toggle('active', tb.dataset.room === room));
+  document.body.dataset.room = room;
+  $$('.room').forEach(r => r.classList.toggle('active', r.id === room));
+  if (room === 'map') Watch.start();
+}
+
 async function boot() {
-  /* atmosphere first — the realm must feel alive immediately */
   startSky(); startHalo(); startVerses();
 
-  /* veil */
   $('#enterBtn').addEventListener('click', () => {
     const wantSound = $('#veilSound').checked;
     setSound(wantSound, true);
@@ -880,21 +1348,13 @@ async function boot() {
     setTimeout(() => $('#veil').remove(), 1600);
   });
 
-  /* sound */
   const soundPref = localStorage.getItem('realm.sound');
   if (soundPref === '0') $('#veilSound').checked = false;
   $('#soundBtn').addEventListener('click', () =>
     setSound(!$('#soundBtn').classList.contains('on'), true));
 
-  /* rooms */
-  $$('.room-tab').forEach(tab => tab.addEventListener('click', () => {
-    $$('.room-tab').forEach(t => t.classList.toggle('active', t === tab));
-    const room = tab.dataset.room;
-    document.body.dataset.room = room;
-    $$('.room').forEach(r => r.classList.toggle('active', r.id === room));
-  }));
+  $$('.room-tab').forEach(tab => tab.addEventListener('click', () => switchRoom(tab.dataset.room)));
 
-  /* shop link */
   if (CFG.shopUrl) $('#shopLink').href = CFG.shopUrl;
 
   /* backend */
@@ -914,13 +1374,19 @@ async function boot() {
   const doAuth = () => {
     if (state.user) { backend.signOut(); return; }
     if (!backend.isDemo && isInAppBrowser())
-      toast('Tip: Google blocks sign-in inside the TikTok app. Tap ⋯ → “Open in browser”.', 'gold');
+      toast('Tip: Google blocks sign-in inside the TikTok app. Tap the menu, then "Open in browser".', 'gold');
     backend.signIn();
   };
   $('#authBtn').addEventListener('click', doAuth);
   $('#lockedAuthBtn').addEventListener('click', doAuth);
 
-  backend.onUser(u => { state.user = u; renderAuth(); });
+  backend.onUser(u => {
+    state.user = u;
+    renderAuth();
+    subscribeThreads();
+    if (u) startPresence(); else { stopPresence(); closePanel(); }
+    updateSouls();
+  });
 
   /* composer */
   buildCatPick();
@@ -936,11 +1402,12 @@ async function boot() {
         text,
         category: $('#catPick').dataset.sel || 'other',
         anonymous: $('#anonToggle').checked,
+        loc: state.geo.mode === 'on' ? { lat: state.geo.lat, lng: state.geo.lng } : null,
       });
       ta.value = '';
       const r = btn.getBoundingClientRect();
       burst(r.left + r.width / 2, r.top);
-      toast('🕊 Placed on the altar. The saints are with you.', 'gold');
+      toast('Placed on the altar. The saints are with you.', 'gold');
     } catch (e) {
       console.error(e);
       toast('The altar could not receive it — try again.', 'rose');
@@ -948,22 +1415,50 @@ async function boot() {
   });
 
   /* wall tools */
-  $('#sortSel').addEventListener('change', e => { state.sort = e.target.value; renderPrayers(); });
+  $$('#sortSeg .seg-btn').forEach(b => b.addEventListener('click', () => {
+    $$('#sortSeg .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    state.sort = b.dataset.sort;
+    renderPrayers();
+  }));
   buildFilterChips();
+  renderPrayers(); // skeletons until first snapshot
 
   /* live data */
-  backend.onPrayers(list => { state.prayers = list; renderPrayers(); });
-  backend.onSanctuary(s => { state.sanctuary = s; renderSanctuary(); });
+  backend.onPrayers(list => { state.prayers = list; state.loaded = true; renderPrayers(); Watch.refresh(); });
+  backend.onSouls(list => { state.souls = list; updateSouls(); });
+  setInterval(updateSouls, 30000);
 
-  /* keeper panel */
-  $('#adminSave').addEventListener('click', async () => {
-    const url = $('#adminUrl').value.trim();
-    if (url && !parseVideo(url)) return toast('That link could not be read — paste a YouTube, Twitch, or TikTok video link.', 'rose');
-    try {
-      await backend.setSanctuary({ url, title: $('#adminTitle').value.trim() || 'The Sanctuary', live: $('#adminLive').checked });
-      toast('✨ The Sanctuary has been updated.', 'gold');
-    } catch (e) { console.error(e); toast('Could not update — are you signed in as the keeper?', 'rose'); }
+  /* the watch — my light */
+  geoLabel();
+  $('#geoBtn').addEventListener('click', async () => {
+    if (!state.user) return needSignIn();
+    if (state.geo.mode === 'on') {
+      state.geo = { mode: 'off' };
+      saveGeo(); geoLabel(); beatPresence();
+      toast('Your light is dimmed. You remain counted among the watchers.');
+      return;
+    }
+    const got = await acquireGeo();
+    if (!got) return toast('Could not place your light — location unavailable.', 'rose');
+    state.geo = { mode: 'on', lat: got.lat, lng: got.lng };
+    saveGeo(); geoLabel(); beatPresence();
+    toast('Your light now shines on the watch.', 'gold');
   });
+
+  /* words */
+  $('#dmBtn').addEventListener('click', () => { $('#dmPanel').hidden ? openPanel() : closePanel(); });
+  $('#dmClose').addEventListener('click', closePanel);
+  $('#dmBack').addEventListener('click', showThreadList);
+  const sendWord = async () => {
+    const input = $('#dmInput');
+    const text = input.value.trim();
+    if (!text || !state.dm.openId) return;
+    input.value = '';
+    try { await backend.sendMessage(state.dm.openId, text); }
+    catch (e) { console.error(e); toast('Could not send — try again.', 'rose'); }
+  };
+  $('#dmSend').addEventListener('click', sendWord);
+  $('#dmInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendWord(); });
 
   renderAuth();
 }

@@ -83,22 +83,21 @@ deploys it automatically to `https://YOURUSERNAME.github.io/website/`.
 ## Step 6 — Claim your throne 👑
 
 1. Open the live site → **Enter with Google** using your keeper email.
-2. Go to **The Sanctuary** → you'll see the **Keeper's Keys** panel (only you can).
-3. Paste a video link → **Update the Sanctuary**. Done — every visitor sees it.
+2. You are the **Keeper**: you can remove any prayer or comment, and you see
+   report counts on flagged cards.
+3. Visit **The Watch** and tap **“Shine my light on the map”** — your light
+   joins the realm (city-level only, opt-in, can be dimmed anytime).
 
 ---
 
-## 📺 Daily videos & going LIVE
+## 🔁 When the site gets new features
 
-- **Daily video:** upload to YouTube (Unlisted is fine — viewers don't need
-  YouTube, they watch inside your realm). Copy the link → Keeper's Keys →
-  paste → update. Takes 20 seconds a day.
-- **Live stream:** start a YouTube Live (or Twitch) stream → copy the live
-  link (`youtube.com/live/...`) → paste into Keeper's Keys → tick
-  **“We are LIVE right now”** → update. The realm shows a pulsing 🔴 LIVE
-  badge and everyone watches together inside the Sanctuary.
-- TikTok video links also work for replays; TikTok *lives* can't be embedded
-  (TikTok doesn't allow it) — use YouTube Live for streams.
+Whenever `firestore.rules` changes in this repo (for example: the live map
+presence and private **Words** messaging), the database won't allow the new
+features until you re-publish the rules:
+
+**Firebase Console → Firestore Database → Rules → select all → delete →
+paste the new `firestore.rules` → Publish.** Takes 30 seconds.
 
 ## 📣 Important: TikTok's in-app browser
 
@@ -136,5 +135,5 @@ genuinely big — and then it scales without rebuilding anything.
 | “DEMO MODE” banner still showing | `js/config.js` still has `YOUR_...` placeholders, or the deployed site hasn't updated yet. |
 | Google popup closes / `auth/unauthorized-domain` | Add your exact domain in Authentication → Settings → Authorized domains. |
 | Sign-in fails inside TikTok/Instagram | Expected — open in Safari/Chrome (see above). |
-| “Missing or insufficient permissions” | Rules not published, or your email isn't in `isKeeper()` for keeper actions. |
-| Video won't load in Sanctuary | Use a normal YouTube link; if the video is Private it can't embed — use Unlisted. |
+| “Missing or insufficient permissions” | Rules not published / out of date — re-paste the latest `firestore.rules` and Publish. |
+| Map shows lights but no continents | The map shape loads from a CDN; a strict ad-blocker can block it. The realm falls back gracefully — lights still show. |

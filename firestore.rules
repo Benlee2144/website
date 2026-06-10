@@ -1,14 +1,15 @@
 rules_version = '2';
 
 // ═══════════════════════════════════════════════════════════════════
-// THE PRAYER REALM — Firestore security rules
+// THE PRAYER REALM — Firestore security rules (v2)
 //
 // These rules are what actually protect the realm. They run on
 // Google's servers, so even someone who edits the website code in
 // their browser cannot break them.
 //
-// HOW TO INSTALL (see SETUP.md, step 4):
-//   Firebase Console → Firestore Database → Rules → paste → Publish
+// HOW TO INSTALL / UPDATE:
+//   Firebase Console → Firestore Database → Rules →
+//   replace everything with this file → Publish
 //
 // ⚠ IMPORTANT: put YOUR Google email(s) in isKeeper() below.
 //   Keep it in sync with adminEmails in js/config.js.
@@ -37,14 +38,20 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // Optional coarse location — number pairs only, world bounds.
+    function validLoc(d) {
+      return !d.keys().hasAny(['loc'])
+        || (d.loc.lat is number && d.loc.lng is number
+            && d.loc.lat >= -90 && d.loc.lat <= 90
+            && d.loc.lng >= -180 && d.loc.lng <= 180);
+    }
+
     // ── prayers ────────────────────────────────────────────────────
     match /prayers/{prayerId} {
 
       // Anyone may read the altar — even before signing in.
       allow read: if true;
 
-      // Only signed-in users may place a prayer, only as themselves,
-      // with a sane shape (counters start at zero, no forged fields).
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid
         && validText(request.resource.data.text, 1200)
@@ -57,7 +64,8 @@ service cloud.firestore {
         && request.resource.data.answered == false
         && request.resource.data.flags == []
         && request.resource.data.commentCount == 0
-        && request.resource.data.reactions.keys().hasOnly(['love','dove','cross','fire']);
+        && request.resource.data.reactions.keys().hasOnly(['love','dove','cross','fire'])
+        && validLoc(request.resource.data);
 
       // The author or a keeper may remove a prayer.
       allow delete: if signedIn()
@@ -68,7 +76,7 @@ service cloud.firestore {
         isAmen() || isReaction() || isAnsweredToggle() || isFlag() || isCommentCount()
       );
 
-      // 🙏 “I prayed” — append exactly your own uid, exactly once,
+      // "I prayed" — append exactly your own uid, exactly once,
       // and keep the counter honest.
       function isAmen() {
         return changedOnly(['prayedBy', 'prayedCount'])
@@ -77,28 +85,28 @@ service cloud.firestore {
           && request.resource.data.prayedCount == request.resource.data.prayedBy.size();
       }
 
-      // ❤️🕊️✝️🔥 — reactions may change, but only the reactions map,
+      // Reactions may change, but only the reactions map,
       // and only with the known reaction keys.
       function isReaction() {
         return changedOnly(['reactions'])
           && request.resource.data.reactions.keys().hasOnly(['love','dove','cross','fire']);
       }
 
-      // ✨ Only the author may mark their prayer answered (or unmark).
+      // Only the author may mark their prayer answered (or unmark).
       function isAnsweredToggle() {
         return changedOnly(['answered', 'answeredAt'])
           && resource.data.uid == request.auth.uid
           && request.resource.data.answered is bool;
       }
 
-      // 🚩 Reporting — append exactly your own uid to flags, once.
+      // Reporting — append exactly your own uid to flags, once.
       function isFlag() {
         return changedOnly(['flags'])
           && !(request.auth.uid in resource.data.get('flags', []))
           && request.resource.data.flags == resource.data.get('flags', []).concat([request.auth.uid]);
       }
 
-      // 💬 Comment counter bump (±1) after adding/removing a comment.
+      // Comment counter bump (±1) after adding/removing a comment.
       function isCommentCount() {
         return changedOnly(['commentCount'])
           && request.resource.data.commentCount is int
@@ -106,7 +114,7 @@ service cloud.firestore {
           && (request.resource.data.commentCount - resource.data.get('commentCount', 0)) in [1, -1];
       }
 
-      // ── words of encouragement ───────────────────────────────────
+      // ── words of encouragement (public comments) ─────────────────
       match /comments/{commentId} {
         allow read: if true;
 
@@ -127,10 +135,68 @@ service cloud.firestore {
       }
     }
 
-    // ── sanctuary & site settings — keeper only ────────────────────
-    match /settings/{docId} {
+    // ── presence — one small doc per soul keeping watch ────────────
+    match /presence/{uid} {
       allow read: if true;
-      allow write: if isKeeper();
+
+      // Only you may write your own light; coarse coordinates or null.
+      allow write: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && validText(request.resource.data.name, 80)
+        && request.resource.data.keys().hasOnly(['uid','name','photo','lat','lng','lastSeen'])
+        && (request.resource.data.lat == null
+            || (request.resource.data.lat is number
+                && request.resource.data.lat >= -90 && request.resource.data.lat <= 90))
+        && (request.resource.data.lng == null
+            || (request.resource.data.lng is number
+                && request.resource.data.lng >= -180 && request.resource.data.lng <= 180));
+
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ── words — private messages between exactly two saints ────────
+    match /dms/{threadId} {
+
+      function isParticipant() {
+        return signedIn() && request.auth.uid in resource.data.users;
+      }
+
+      // Only the two participants can ever read a thread.
+      // (Not even the keeper — private words stay private.)
+      allow read: if isParticipant();
+
+      // A thread is created by one of its two members, with a
+      // deterministic id so the same pair always share one thread.
+      allow create: if signedIn()
+        && request.resource.data.users.size() == 2
+        && request.auth.uid in request.resource.data.users
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && threadId == request.resource.data.users[0] + '_' + request.resource.data.users[1];
+
+      // Participants may only touch the preview/read-state fields.
+      allow update: if isParticipant()
+        && changedOnly(['lastText', 'lastFrom', 'updatedAt', 'readAt']);
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function inThread() {
+          return signedIn() && request.auth.uid in
+            get(/databases/$(database)/documents/dms/$(threadId)).data.users;
+        }
+
+        allow read: if inThread();
+
+        allow create: if inThread()
+          && request.resource.data.from == request.auth.uid
+          && validText(request.resource.data.text, 1000);
+
+        // You may unsay your own words.
+        allow delete: if signedIn() && resource.data.from == request.auth.uid;
+
+        allow update: if false;
+      }
     }
 
     // Everything else: sealed.
