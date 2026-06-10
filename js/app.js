@@ -781,62 +781,77 @@ async function updateStats() {
 
 const Watch = (() => {
   let started = false, cv, cx, W = 0, H = 0;
-  let mask = null;                 // ImageData of land at MASK_W × MASK_H
-  const MASK_W = 1024, MASK_H = 512;
-  let dots = null;                 // prerendered land-dot layer
-  let beacons = [];                // projected interactive points
+  let ox = 0, oy = 0, mapW = 0, mapH = 0;   // the world, letterboxed in the stage
+  let mask = null;                          // land raster in mercator space
+  const MW = 2048; let MH = 0;
+  let dots = null;                          // prerendered land-dot layer
+  let beacons = [];                         // projected interactive points
   let hover = null;
   let t = 0;
 
-  const proj = (lng, lat, w, h) => [ (lng + 180) / 360 * w, (90 - lat) / 180 * h ];
+  /* Web Mercator clamped to the inhabited earth — the shapes people know
+     from every map app, so the USA looks like the USA. */
+  const LAT_TOP = 74, LAT_BOT = -60;
+  const merc = lat => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI / 180) / 2));
+  const M_TOP = merc(LAT_TOP), M_BOT = merc(LAT_BOT);
+  const ASPECT = (2 * Math.PI) / (M_TOP - M_BOT);   // ≈ 1.92 : 1
 
-  async function loadLand() {
-    const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')).json();
-    const { feature } = await import('https://cdn.jsdelivr.net/npm/topojson-client@3/+esm');
-    const land = feature(topo, topo.objects.land);
-    const off = el('canvas', { width: MASK_W, height: MASK_H });
+  const proj01 = (lng, lat) => [
+    (lng + 180) / 360,
+    (M_TOP - merc(Math.max(LAT_BOT, Math.min(LAT_TOP, lat)))) / (M_TOP - M_BOT),
+  ];
+  const projPx = (lng, lat) => {
+    const [x01, y01] = proj01(lng, lat);
+    return [ox + x01 * mapW, oy + y01 * mapH];
+  };
+
+  /* Earth landmass ships with the site (js/land.js) — no CDN, no
+     ad-blocker failures, renders instantly. */
+  function buildMask() {
+    if (!window.REALM_LAND) return;
+    MH = Math.round(MW / ASPECT);
+    const off = el('canvas', { width: MW, height: MH });
     const oc = off.getContext('2d');
     oc.fillStyle = '#fff';
-    const geoms = land.type === 'FeatureCollection' ? land.features.map(f => f.geometry) : [land.geometry];
-    for (const g of geoms) {
-      const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
-      for (const poly of polys) {
-        oc.beginPath();
-        for (const ring of poly) {
-          ring.forEach(([lng, lat], i) => {
-            const [x, y] = proj(lng, lat, MASK_W, MASK_H);
-            i ? oc.lineTo(x, y) : oc.moveTo(x, y);
-          });
-          oc.closePath();
-        }
-        oc.fill('evenodd');
+    for (const poly of window.REALM_LAND) {
+      oc.beginPath();
+      for (const ring of poly) {
+        ring.forEach(([lng, lat], i) => {
+          const [x01, y01] = proj01(lng, lat);
+          i ? oc.lineTo(x01 * MW, y01 * MH) : oc.moveTo(x01 * MW, y01 * MH);
+        });
+        oc.closePath();
       }
+      oc.fill('evenodd');
     }
-    mask = oc.getImageData(0, 0, MASK_W, MASK_H);
+    mask = oc.getImageData(0, 0, MW, MH);
   }
 
   function landAt(x01, y01) {
     if (!mask) return false;
-    const mx = Math.min(MASK_W - 1, Math.max(0, Math.round(x01 * MASK_W)));
-    const my = Math.min(MASK_H - 1, Math.max(0, Math.round(y01 * MASK_H)));
-    return mask.data[(my * MASK_W + mx) * 4 + 3] > 100;
+    const mx = Math.min(MW - 1, Math.max(0, Math.round(x01 * MW)));
+    const my = Math.min(MH - 1, Math.max(0, Math.round(y01 * MH)));
+    return mask.data[(my * MW + mx) * 4 + 3] > 100;
   }
 
   function buildDots() {
-    if (!W || !H) return;
+    if (!W || !H || !mapW) return;
     dots = el('canvas', { width: W, height: H });
     const dc = dots.getContext('2d');
-    const step = Math.max(4.5, W / 165);
-    const r = Math.max(.9, W / 760);
-    for (let y = step / 2; y < H; y += step) {
-      for (let x = step / 2; x < W; x += step) {
-        const isLand = mask ? landAt(x / W, y / H)
+    const step = Math.max(2.8, mapW / 300);
+    const r = Math.max(.8, step * .34);
+    for (let y = oy + step / 2; y < oy + mapH; y += step) {
+      for (let x = ox + step / 2; x < ox + mapW; x += step) {
+        const x01 = (x - ox) / mapW, y01 = (y - oy) / mapH;
+        const isLand = mask ? landAt(x01, y01)
           /* veiled-earth fallback: a graticule of faint dots */
-          : (Math.abs(y / H * 180 - 90) % 15 < 1.2 || Math.abs(x / W * 360 - 180) % 15 < 1.2);
+          : (Math.abs(y01 * 180 - 90) % 15 < 1.1 || Math.abs(x01 * 360 - 180) % 15 < 1.1);
         if (!isLand) continue;
-        const a = mask ? (.22 + Math.random() * .3) : .12;
+        const a = mask ? (.25 + Math.random() * .28) : .12;
         dc.fillStyle = `rgba(158, 144, 205, ${a})`;
-        dc.beginPath(); dc.arc(x + (Math.random() - .5), y + (Math.random() - .5), r, 0, 7); dc.fill();
+        dc.beginPath();
+        dc.arc(x + (Math.random() - .5) * .8, y + (Math.random() - .5) * .8, r, 0, 7);
+        dc.fill();
       }
     }
   }
@@ -848,14 +863,14 @@ const Watch = (() => {
     const out = [];
     for (const p of state.prayers) {
       if (!p.loc) continue;
-      const [x, y] = proj(p.loc.lng, p.loc.lat, W, H);
+      const [x, y] = projPx(p.loc.lng, p.loc.lat);
       out.push({ x, y, type: 'prayer', id: p.id, label: displayName(p),
                  text: p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text,
                  phase: (p.id.charCodeAt(p.id.length - 1) || 0) % 7 });
     }
     for (const s of state.souls) {
       if (s.lat == null || s.lastSeen < fresh) continue;
-      const [x, y] = proj(s.lng, s.lat, W, H);
+      const [x, y] = projPx(s.lng, s.lat);
       out.push({ x, y, type: s.uid === me ? 'me' : 'soul', id: s.uid,
                  label: s.uid === me ? 'You — keeping watch' : s.name,
                  text: s.uid === me ? '' : 'keeping watch in the realm', phase: x % 7 });
@@ -909,6 +924,8 @@ const Watch = (() => {
     const rect = stage.getBoundingClientRect();
     const dpr = Math.min(2, devicePixelRatio || 1);
     W = Math.round(rect.width); H = Math.round(rect.height);
+    mapW = Math.min(W, H * ASPECT); mapH = mapW / ASPECT;
+    ox = (W - mapW) / 2; oy = (H - mapH) / 2;
     cv.width = W * dpr; cv.height = H * dpr;
     cx = cv.getContext('2d');
     cx.scale(dpr, dpr);
@@ -928,7 +945,7 @@ const Watch = (() => {
     if (started) return;
     started = true;
     cv = $('#mapCanvas');
-    try { await loadLand(); } catch (e) { console.warn('land veiled:', e); }
+    try { buildMask(); } catch (e) { console.warn('land veiled:', e); }
     $('#mapLoading').classList.add('gone');
     size();
     addEventListener('resize', size);
