@@ -1,0 +1,141 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════
+// THE PRAYER REALM — Firestore security rules
+//
+// These rules are what actually protect the realm. They run on
+// Google's servers, so even someone who edits the website code in
+// their browser cannot break them.
+//
+// HOW TO INSTALL (see SETUP.md, step 4):
+//   Firebase Console → Firestore Database → Rules → paste → Publish
+//
+// ⚠ IMPORTANT: put YOUR Google email(s) in isKeeper() below.
+//   Keep it in sync with adminEmails in js/config.js.
+// ═══════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The keeper(s) of the realm — full moderation powers.
+    function isKeeper() {
+      return signedIn() && request.auth.token.email in [
+        'benarp2144@gmail.com'
+      ];
+    }
+
+    function validText(t, max) {
+      return t is string && t.size() > 0 && t.size() <= max;
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ── prayers ────────────────────────────────────────────────────
+    match /prayers/{prayerId} {
+
+      // Anyone may read the altar — even before signing in.
+      allow read: if true;
+
+      // Only signed-in users may place a prayer, only as themselves,
+      // with a sane shape (counters start at zero, no forged fields).
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && validText(request.resource.data.text, 1200)
+        && validText(request.resource.data.name, 80)
+        && request.resource.data.anonymous is bool
+        && request.resource.data.category in
+           ['healing','family','faith','finances','protection','guidance','praise','other']
+        && request.resource.data.prayedBy == []
+        && request.resource.data.prayedCount == 0
+        && request.resource.data.answered == false
+        && request.resource.data.flags == []
+        && request.resource.data.commentCount == 0
+        && request.resource.data.reactions.keys().hasOnly(['love','dove','cross','fire']);
+
+      // The author or a keeper may remove a prayer.
+      allow delete: if signedIn()
+        && (resource.data.uid == request.auth.uid || isKeeper());
+
+      // Updates are allowed ONLY as one of these precise moves:
+      allow update: if signedIn() && (
+        isAmen() || isReaction() || isAnsweredToggle() || isFlag() || isCommentCount()
+      );
+
+      // 🙏 “I prayed” — append exactly your own uid, exactly once,
+      // and keep the counter honest.
+      function isAmen() {
+        return changedOnly(['prayedBy', 'prayedCount'])
+          && !(request.auth.uid in resource.data.prayedBy)
+          && request.resource.data.prayedBy == resource.data.prayedBy.concat([request.auth.uid])
+          && request.resource.data.prayedCount == request.resource.data.prayedBy.size();
+      }
+
+      // ❤️🕊️✝️🔥 — reactions may change, but only the reactions map,
+      // and only with the known reaction keys.
+      function isReaction() {
+        return changedOnly(['reactions'])
+          && request.resource.data.reactions.keys().hasOnly(['love','dove','cross','fire']);
+      }
+
+      // ✨ Only the author may mark their prayer answered (or unmark).
+      function isAnsweredToggle() {
+        return changedOnly(['answered', 'answeredAt'])
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.answered is bool;
+      }
+
+      // 🚩 Reporting — append exactly your own uid to flags, once.
+      function isFlag() {
+        return changedOnly(['flags'])
+          && !(request.auth.uid in resource.data.get('flags', []))
+          && request.resource.data.flags == resource.data.get('flags', []).concat([request.auth.uid]);
+      }
+
+      // 💬 Comment counter bump (±1) after adding/removing a comment.
+      function isCommentCount() {
+        return changedOnly(['commentCount'])
+          && request.resource.data.commentCount is int
+          && request.resource.data.commentCount >= 0
+          && (request.resource.data.commentCount - resource.data.get('commentCount', 0)) in [1, -1];
+      }
+
+      // ── words of encouragement ───────────────────────────────────
+      match /comments/{commentId} {
+        allow read: if true;
+
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && validText(request.resource.data.text, 600)
+          && validText(request.resource.data.name, 80)
+          && request.resource.data.anonymous is bool;
+
+        // Comment author, prayer author, or keeper may remove.
+        allow delete: if signedIn() && (
+          resource.data.uid == request.auth.uid
+          || isKeeper()
+          || get(/databases/$(database)/documents/prayers/$(prayerId)).data.uid == request.auth.uid
+        );
+
+        allow update: if false;
+      }
+    }
+
+    // ── sanctuary & site settings — keeper only ────────────────────
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isKeeper();
+    }
+
+    // Everything else: sealed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
