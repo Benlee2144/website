@@ -2,100 +2,175 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovaBots Clone</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(270deg, #1a1a2e, #16213e, #0f3460);
-      background-size: 600% 600%;
-      color: white;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-      animation: backgroundShift 10s infinite linear;
-    }
-    @keyframes backgroundShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    .container {
-      max-width: 800px;
-      padding: 20px;
-    }
-    h1 {
-      font-size: 3rem;
-      font-weight: bold;
-      margin-bottom: 20px;
-      animation: fadeIn 1s ease-in-out;
-    }
-    .nova {
-      font-size: 3.5rem;
-      font-weight: bold;
-      background-image: linear-gradient(90deg, purple, pink, orange, cyan);
-      background-size: 300% 100%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      display: inline-block;
-      animation: gradientShift 3s infinite linear;
-    }
-    @keyframes gradientShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    p {
-      font-size: 1.2rem;
-      margin-bottom: 30px;
-      opacity: 0;
-      animation: fadeIn 1.5s ease-in-out forwards;
-      animation-delay: 0.5s;
-    }
-    .telegram-button {
-      display: inline-block;
-      padding: 15px 35px;
-      background: #0088cc;
-      color: white;
-      font-size: 1.2rem;
-      font-weight: bold;
-      text-decoration: none;
-      border-radius: 50px;
-      transition: background 0.3s ease;
-      opacity: 0;
-      animation: fadeIn 2s ease-in-out forwards;
-      animation-delay: 1s;
-    }
-    .telegram-button:hover {
-      background: #0070a8;
-    }
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06040f">
+  <title>The Prayer Realm — KingdomCovers</title>
+  <meta name="description" content="A living sanctuary by KingdomCovers. Lay your prayer on the altar, lift up the saints around you, and gather for the daily word — together, at His feet.">
+  <meta property="og:title" content="The Prayer Realm — KingdomCovers">
+  <meta property="og:description" content="Lay it at His feet. A living prayer room where believers carry one another.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2306040f'/%3E%3Cpath d='M32 12v40M20 26h24' stroke='%23f3c969' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/realm.css">
 </head>
-<body>
-  <div class="container">
-    <h1><span class="nova">Nova</span> Trade Faster, Safer, & Better</h1>
-    <p>Forget the headache of failed transactions, slippage, and priority fees. Nova makes trading simple and profitable.</p>
-    <a class="telegram-button" href="https://t.me/TradeonNovaBot?start=r-0R601O" target="_blank">Telegram Bot</a>
+<body data-room="altar">
+
+  <!-- ✦ Atmosphere layers -->
+  <canvas id="skyStars" aria-hidden="true"></canvas>
+  <canvas id="skyEmbers" aria-hidden="true"></canvas>
+  <div class="aurora a1" aria-hidden="true"></div>
+  <div class="aurora a2" aria-hidden="true"></div>
+  <div class="aurora a3" aria-hidden="true"></div>
+  <div class="rays" aria-hidden="true"></div>
+  <div id="cursorHalo" aria-hidden="true"></div>
+
+  <!-- ✦ Entry veil -->
+  <div id="veil">
+    <div class="veil-inner">
+      <div class="portal">
+        <div class="portal-ring"></div>
+        <div class="portal-ring r2"></div>
+        <div class="portal-cross">✝</div>
+      </div>
+      <p class="veil-eyebrow">KINGDOMCOVERS PRESENTS</p>
+      <h1 class="veil-title">THE PRAYER REALM</h1>
+      <p class="veil-verse">“Come boldly to the throne of grace.” — Hebrews 4:16</p>
+      <label class="veil-sound">
+        <input type="checkbox" id="veilSound" checked>
+        <span>Enter with heavenly ambience</span>
+      </label>
+      <button id="enterBtn" class="gold-btn big">Enter the Realm</button>
+    </div>
   </div>
+
+  <!-- ✦ Demo banner -->
+  <div id="demoBanner" hidden>
+    <b>DEMO MODE</b> — everything works, but saves only on this device. Follow <b>SETUP.md</b> to connect Google login &amp; the live database.
+  </div>
+
+  <!-- ✦ Crown / header -->
+  <header id="crown">
+    <div class="brand">
+      <span class="brand-mark">✝</span>
+      <span class="brand-text">
+        <span class="brand-name">KINGDOM<em>COVERS</em></span>
+        <span class="brand-sub">The Prayer Realm</span>
+      </span>
+    </div>
+    <div class="crown-right">
+      <button id="soundBtn" class="icon-btn" title="Toggle ambience" aria-label="Toggle ambience">♪</button>
+      <div id="userChip" hidden>
+        <img id="userPhoto" alt="" referrerpolicy="no-referrer">
+        <span id="userName"></span>
+      </div>
+      <button id="authBtn" class="gold-btn">Enter with Google</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ✦ Hero -->
+    <section id="hero">
+      <p class="hero-eyebrow">— A SANCTUARY BEYOND TIME —</p>
+      <h1 class="hero-title">AT HIS<br><em>FEET</em></h1>
+      <p id="verse" class="verse"></p>
+      <div class="stats">
+        <div class="stat"><b id="statPrayers">0</b><span>prayers on the altar</span></div>
+        <div class="stat"><b id="statAmens">0</b><span>amens lifted</span></div>
+        <div class="stat"><b id="statAnswered">0</b><span>answered</span></div>
+      </div>
+    </section>
+
+    <!-- ✦ Room tabs -->
+    <nav id="rooms" aria-label="Rooms">
+      <button class="room-tab active" data-room="altar">✦ The Altar</button>
+      <button class="room-tab" data-room="sanctuary">▷ The Sanctuary</button>
+    </nav>
+
+    <!-- ✦ THE ALTAR -->
+    <section id="altar" class="room active">
+      <div id="composer" class="glass">
+        <div class="composer-head">
+          <span class="flame" aria-hidden="true"></span>
+          Lay it at His feet
+        </div>
+        <textarea id="prayerText" maxlength="1200" rows="3"
+          placeholder="What do you need prayer for, saint? Pour it out here — this altar can hold it."></textarea>
+        <div class="composer-row">
+          <div id="catPick" class="chips"></div>
+        </div>
+        <div class="composer-row space">
+          <label class="anon">
+            <input type="checkbox" id="anonToggle">
+            <span>Place anonymously</span>
+          </label>
+          <button id="submitPrayer" class="gold-btn big">🕊 Place on the Altar</button>
+        </div>
+        <div id="composerLocked" class="locked" hidden>
+          <button id="lockedAuthBtn" class="gold-btn">Enter with Google</button>
+          <span>to place a prayer on the altar</span>
+        </div>
+      </div>
+
+      <div id="wallTools">
+        <div id="filterChips" class="chips"></div>
+        <select id="sortSel" aria-label="Sort prayers">
+          <option value="new">Newest first</option>
+          <option value="amens">Most prayed</option>
+        </select>
+      </div>
+
+      <div id="prayerGrid"></div>
+      <div id="emptyWall" hidden>
+        <div class="empty-flame" aria-hidden="true"></div>
+        The altar awaits its first prayer…
+      </div>
+    </section>
+
+    <!-- ✦ THE SANCTUARY -->
+    <section id="sanctuary" class="room">
+      <div class="sanctum glass">
+        <div class="sanctum-head">
+          <span id="liveBadge" class="live-badge" hidden>● LIVE NOW</span>
+          <h2 id="sanctumTitle">The Sanctuary</h2>
+        </div>
+        <div id="videoFrame">
+          <div id="videoEmpty">
+            <div class="empty-flame big" aria-hidden="true"></div>
+            <p>The Sanctuary is being prepared.<br><span>Return soon for the daily word &amp; live worship.</span></p>
+          </div>
+        </div>
+        <p class="sanctum-note">Daily word &amp; live gatherings from KingdomCovers. When the flame above reads <b>LIVE</b>, we are praying together in real time.</p>
+      </div>
+
+      <div id="adminPanel" class="glass" hidden>
+        <div class="composer-head"><span class="flame" aria-hidden="true"></span> Keeper's Keys <small>(only you can see this)</small></div>
+        <label class="admin-label">Video / stream link (YouTube, YouTube Live, Twitch, TikTok)</label>
+        <input id="adminUrl" type="url" placeholder="https://www.youtube.com/watch?v=…  or  https://youtube.com/live/…">
+        <label class="admin-label">Title shown above the video</label>
+        <input id="adminTitle" type="text" maxlength="120" placeholder="Tonight: Praying over every request on the altar">
+        <label class="anon">
+          <input type="checkbox" id="adminLive">
+          <span>We are <b>LIVE</b> right now</span>
+        </label>
+        <button id="adminSave" class="gold-btn big">Update the Sanctuary</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p class="foot-verse">“Bear one another’s burdens, and so fulfill the law of Christ.” — Galatians 6:2</p>
+    <p class="foot-brand">
+      <span class="brand-mark small">✝</span> THE PRAYER REALM · a sanctuary by
+      <a id="shopLink" href="https://www.tiktok.com/@kingdomcovers" target="_blank" rel="noopener">KingdomCovers</a>
+    </p>
+    <p class="foot-small">Built on prayer. Be kind — every request here belongs to a real soul.</p>
+  </footer>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
