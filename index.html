@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/realm.css?v=3">
+  <link rel="stylesheet" href="css/realm.css?v=4">
 </head>
 <body data-room="altar">
 
@@ -163,23 +163,24 @@
       </div>
     </section>
 
-    <!-- ✦ THE WATCH — live world map -->
+    <!-- ✦ THE WATCH — the nation, live -->
     <section id="map" class="room">
       <div class="watch glass">
         <div class="watch-head">
           <h2><svg class="icon"><use href="#i-globe"/></svg> The Watch</h2>
-          <p>Every light is a soul keeping watch in the realm. Gold flames are prayers rising from the earth.</p>
+          <p>Every light is a soul keeping watch across the nation. Gold flames are prayers rising from real places.</p>
         </div>
         <div id="mapStage">
           <canvas id="mapCanvas"></canvas>
           <div id="mapTip" hidden></div>
-          <div id="mapLoading"><div class="empty-flame" aria-hidden="true"></div>charting the earth…</div>
+          <div id="mapLoading"><div class="empty-flame" aria-hidden="true"></div>charting the nation…</div>
         </div>
         <div class="watch-foot">
           <div class="legend">
             <span class="lg"><i class="dot gold"></i> prayer rising</span>
             <span class="lg"><i class="dot violet"></i> soul present</span>
             <span class="lg"><i class="dot bright"></i> you</span>
+            <span class="lg" id="beyondNote" hidden></span>
           </div>
           <button id="geoBtn" class="ghost-btn"><svg class="icon"><use href="#i-pin"/></svg><span id="geoBtnLabel">Shine my light on the map</span></button>
         </div>
@@ -219,8 +220,8 @@
 
   <div id="toasts" aria-live="polite"></div>
 
-  <script src="js/config.js?v=3"></script>
-  <script src="js/land.js?v=3"></script>
-  <script type="module" src="js/app.js?v=3"></script>
+  <script src="js/config.js?v=4"></script>
+  <script src="js/usa.js?v=4"></script>
+  <script type="module" src="js/app.js?v=4"></script>
 </body>
 </html>

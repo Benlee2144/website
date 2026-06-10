@@ -161,7 +161,7 @@ function makeLocalBackend() {
         text: 'Praying for every single person who finds this place. May you feel Him closer than your own breath.',
         category: 'praise', createdAt: now - 86400000 * 5, prayedBy: ['a'], prayedCount: 1,
         reactions: { love: [], dove: ['a'], cross: [], fire: ['b'] }, answered: true, flags: [],
-        commentCount: 0, loc: { lat: 31.8, lng: 35.2 } },
+        commentCount: 0, loc: { lat: 32.8, lng: -96.8 } },
     ],
     comments: { 'seed-1': [
       { id: 'c1', uid: 'keeper', name: 'The Realm Keeper', photo: null, anonymous: false,
@@ -191,10 +191,11 @@ function makeLocalBackend() {
   /* a handful of souls keeping watch, so the map breathes in demo */
   const demoSouls = [
     { uid: 'w1', name: 'A Saint in Nashville', photo: null, lat: 36.2, lng: -86.8 },
-    { uid: 'w2', name: 'A Saint in Jerusalem', photo: null, lat: 31.8, lng: 35.2 },
-    { uid: 'w3', name: 'A Saint in Lagos', photo: null, lat: 6.5, lng: 3.4 },
-    { uid: 'w4', name: 'A Saint in Manila', photo: null, lat: 14.6, lng: 121 },
-    { uid: 'w5', name: 'A Saint in São Paulo', photo: null, lat: -23.5, lng: -46.6 },
+    { uid: 'w2', name: 'A Saint in Dallas', photo: null, lat: 32.8, lng: -96.8 },
+    { uid: 'w3', name: 'A Saint in Los Angeles', photo: null, lat: 34.1, lng: -118.2 },
+    { uid: 'w4', name: 'A Saint in New York', photo: null, lat: 40.7, lng: -74 },
+    { uid: 'w5', name: 'A Saint in Anchorage', photo: null, lat: 61.2, lng: -149.9 },
+    { uid: 'w6', name: 'A Saint in London', photo: null, lat: 51.5, lng: -.1 },
   ].map(s => ({ ...s, lastSeen: Date.now() }));
   let ownPresence = null;
   const emitSouls = () => soulCbs.forEach(cb =>
@@ -776,75 +777,93 @@ async function updateStats() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   THE WATCH — live world map (dot-matrix earth, beacons of prayer)
+   THE WATCH — the nation, live (dot-matrix USA, beacons of prayer)
    ═══════════════════════════════════════════════════════════════════ */
 
 const Watch = (() => {
   let started = false, cv, cx, W = 0, H = 0;
-  let ox = 0, oy = 0, mapW = 0, mapH = 0;   // the world, letterboxed in the stage
-  let mask = null;                          // land raster in mercator space
-  const MW = 2048; let MH = 0;
-  let dots = null;                          // prerendered land-dot layer
+  let ox = 0, oy = 0, mapW = 0, mapH = 0;   // the nation, letterboxed in the stage
+  let mask = null;                          // land raster in atlas space
+  let dots = null;                          // prerendered land-dot + border layer
   let beacons = [];                         // projected interactive points
   let hover = null;
   let t = 0;
 
-  /* Web Mercator clamped to the inhabited earth — the shapes people know
-     from every map app, so the USA looks like the USA. */
-  const LAT_TOP = 74, LAT_BOT = -60;
-  const merc = lat => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI / 180) / 2));
-  const M_TOP = merc(LAT_TOP), M_BOT = merc(LAT_BOT);
-  const ASPECT = (2 * Math.PI) / (M_TOP - M_BOT);   // ≈ 1.92 : 1
-
-  const proj01 = (lng, lat) => [
-    (lng + 180) / 360,
-    (M_TOP - merc(Math.max(LAT_BOT, Math.min(LAT_TOP, lat)))) / (M_TOP - M_BOT),
-  ];
+  /* The United States — Albers USA, the projection of every classic
+     American map (lower 48 with Alaska & Hawaii insets). Constants
+     pixel-match the baked us-atlas data: scale 1300, translate
+     (487.5, 305). Math adapted from d3-geo (ISC license). */
+  const UW = 975, UH = 610, ASPECT = UW / UH;
+  const RAD = Math.PI / 180;
+  function conicUsa(parallels, rotateLng, center, scale, translate) {
+    const p0 = parallels[0] * RAD, p1 = parallels[1] * RAD;
+    const sy0 = Math.sin(p0), n = (sy0 + Math.sin(p1)) / 2,
+          c = 1 + sy0 * (2 * n - sy0), r0 = Math.sqrt(c) / n;
+    const raw = (lDeg, latDeg) => {
+      const th = lDeg * RAD * n, phi = latDeg * RAD;
+      const r = Math.sqrt(Math.max(0, c - 2 * n * Math.sin(phi))) / n;
+      return [r * Math.sin(th), r0 - r * Math.cos(th)];
+    };
+    const base = raw(center[0], center[1]);
+    return (lng, lat) => {
+      const l = ((lng + rotateLng + 540) % 360) - 180;
+      const xy = raw(l, lat);
+      return [translate[0] + scale * (xy[0] - base[0]), translate[1] - scale * (xy[1] - base[1])];
+    };
+  }
+  const K = 1300, TX = 487.5, TY = 305;
+  const projL48 = conicUsa([29.5, 45.5], 96, [-.6, 38.7], K, [TX, TY]);
+  const projAK  = conicUsa([55, 65], 154, [-2, 58.5], K * .35, [TX - .307 * K, TY + .201 * K]);
+  const projHI  = conicUsa([8, 18], 157, [-3, 19.9], K, [TX - .205 * K, TY + .212 * K]);
+  const albersUsa = (lng, lat) => {
+    if (lat >= 18 && lat <= 23.5 && lng >= -161 && lng <= -154) return projHI(lng, lat);
+    if (lat >= 50 && (lng <= -128 || lng >= 170)) return projAK(lng, lat);
+    return projL48(lng, lat);
+  };
+  /* → canvas px, or null when the light falls beyond this map */
   const projPx = (lng, lat) => {
-    const [x01, y01] = proj01(lng, lat);
-    return [ox + x01 * mapW, oy + y01 * mapH];
+    const u = albersUsa(lng, lat);
+    if (u[0] < -10 || u[0] > UW + 10 || u[1] < -10 || u[1] > UH + 10) return null;
+    return [ox + u[0] / UW * mapW, oy + u[1] / UH * mapH];
   };
 
-  /* Earth landmass ships with the site (js/land.js) — no CDN, no
+  /* The nation ships with the site (js/usa.js) — no CDN, no
      ad-blocker failures, renders instantly. */
   function buildMask() {
-    if (!window.REALM_LAND) return;
-    MH = Math.round(MW / ASPECT);
-    const off = el('canvas', { width: MW, height: MH });
+    if (!window.REALM_USA) return;
+    const off = el('canvas', { width: UW * 2, height: UH * 2 });
     const oc = off.getContext('2d');
+    oc.scale(2, 2);
     oc.fillStyle = '#fff';
-    for (const poly of window.REALM_LAND) {
+    for (const poly of window.REALM_USA.states) {
       oc.beginPath();
       for (const ring of poly) {
-        ring.forEach(([lng, lat], i) => {
-          const [x01, y01] = proj01(lng, lat);
-          i ? oc.lineTo(x01 * MW, y01 * MH) : oc.moveTo(x01 * MW, y01 * MH);
-        });
+        ring.forEach(([x, y], i) => i ? oc.lineTo(x, y) : oc.moveTo(x, y));
         oc.closePath();
       }
       oc.fill('evenodd');
     }
-    mask = oc.getImageData(0, 0, MW, MH);
+    mask = oc.getImageData(0, 0, UW * 2, UH * 2);
   }
 
   function landAt(x01, y01) {
     if (!mask) return false;
-    const mx = Math.min(MW - 1, Math.max(0, Math.round(x01 * MW)));
-    const my = Math.min(MH - 1, Math.max(0, Math.round(y01 * MH)));
-    return mask.data[(my * MW + mx) * 4 + 3] > 100;
+    const mx = Math.min(UW * 2 - 1, Math.max(0, Math.round(x01 * UW * 2)));
+    const my = Math.min(UH * 2 - 1, Math.max(0, Math.round(y01 * UH * 2)));
+    return mask.data[(my * UW * 2 + mx) * 4 + 3] > 100;
   }
 
   function buildDots() {
     if (!W || !H || !mapW) return;
     dots = el('canvas', { width: W, height: H });
     const dc = dots.getContext('2d');
-    const step = Math.max(2.8, mapW / 300);
+    const step = Math.max(2.6, mapW / 320);
     const r = Math.max(.8, step * .34);
     for (let y = oy + step / 2; y < oy + mapH; y += step) {
       for (let x = ox + step / 2; x < ox + mapW; x += step) {
         const x01 = (x - ox) / mapW, y01 = (y - oy) / mapH;
         const isLand = mask ? landAt(x01, y01)
-          /* veiled-earth fallback: a graticule of faint dots */
+          /* veiled fallback: a graticule of faint dots */
           : (Math.abs(y01 * 180 - 90) % 15 < 1.1 || Math.abs(x01 * 360 - 180) % 15 < 1.1);
         if (!isLand) continue;
         const a = mask ? (.25 + Math.random() * .28) : .12;
@@ -854,6 +873,23 @@ const Watch = (() => {
         dc.fill();
       }
     }
+    /* state borders + national outline — the lines that make it read
+       as THE American map */
+    if (window.REALM_USA) {
+      const sx = mapW / UW, sy = mapH / UH;
+      const stroke = (lines, style, width) => {
+        dc.strokeStyle = style; dc.lineWidth = width;
+        dc.lineJoin = 'round'; dc.lineCap = 'round';
+        for (const line of lines) {
+          dc.beginPath();
+          line.forEach(([x, y], i) =>
+            i ? dc.lineTo(ox + x * sx, oy + y * sy) : dc.moveTo(ox + x * sx, oy + y * sy));
+          dc.stroke();
+        }
+      };
+      stroke(window.REALM_USA.borders, 'rgba(167, 152, 220, .30)', Math.max(.6, mapW / 1600));
+      stroke(window.REALM_USA.outline, 'rgba(243, 201, 105, .40)', Math.max(.8, mapW / 1300));
+    }
   }
 
   function rebuildBeacons() {
@@ -861,21 +897,29 @@ const Watch = (() => {
     const me = state.user?.uid;
     const fresh = Date.now() - 150000;
     const out = [];
+    let beyond = 0;
     for (const p of state.prayers) {
       if (!p.loc) continue;
-      const [x, y] = projPx(p.loc.lng, p.loc.lat);
-      out.push({ x, y, type: 'prayer', id: p.id, label: displayName(p),
+      const pt = projPx(p.loc.lng, p.loc.lat);
+      if (!pt) { beyond++; continue; }
+      out.push({ x: pt[0], y: pt[1], type: 'prayer', id: p.id, label: displayName(p),
                  text: p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text,
                  phase: (p.id.charCodeAt(p.id.length - 1) || 0) % 7 });
     }
     for (const s of state.souls) {
       if (s.lat == null || s.lastSeen < fresh) continue;
-      const [x, y] = projPx(s.lng, s.lat);
-      out.push({ x, y, type: s.uid === me ? 'me' : 'soul', id: s.uid,
+      const pt = projPx(s.lng, s.lat);
+      if (!pt) { beyond++; continue; }
+      out.push({ x: pt[0], y: pt[1], type: s.uid === me ? 'me' : 'soul', id: s.uid,
                  label: s.uid === me ? 'You — keeping watch' : s.name,
-                 text: s.uid === me ? '' : 'keeping watch in the realm', phase: x % 7 });
+                 text: s.uid === me ? '' : 'keeping watch in the realm', phase: pt[0] % 7 });
     }
     beacons = out;
+    const note = $('#beyondNote');
+    if (note) {
+      note.hidden = !beyond;
+      if (beyond) note.textContent = `+${beyond} keeping watch beyond this map`;
+    }
   }
 
   function frame() {

@@ -708,7 +708,7 @@ main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; paddi
 .watch-head p { font-size: 13.5px; color: var(--ink-dim); line-height: 1.6; }
 
 #mapStage {
-  position: relative; width: 100%; aspect-ratio: 2 / 1;
+  position: relative; width: 100%; aspect-ratio: 975 / 610;
   border-radius: 16px; overflow: hidden;
   background:
     radial-gradient(90% 120% at 50% -10%, rgba(124, 92, 255, .10), transparent 60%),
@@ -894,7 +894,7 @@ footer {
   .pc-actions { gap: 5px; }
   .amen-btn { padding: 8px 13px; }
   .rays { width: 280vmax; }
-  #mapStage { aspect-ratio: 16 / 11; }
+  #mapStage { aspect-ratio: 975 / 610; }
   .stat-rule { display: none; }
 }
 
