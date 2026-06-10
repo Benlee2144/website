@@ -1,0 +1,112 @@
+========================================
+    GUMROAD SELLER INSTRUCTIONS
+    LeadHarvester Distribution Guide
+========================================
+
+This folder contains everything you need to sell LeadHarvester on Gumroad.
+
+WHAT'S INCLUDED
+---------------
+1. LeadHarvester-Windows-v1.0.0.zip (READY TO UPLOAD)
+   - Complete Windows portable app
+   - README with user instructions
+   - No installation required for customers
+
+2. BUILD_MAC_PACKAGE.sh (BUILD SCRIPT)
+   - Run this on your Mac to create the macOS package
+   - Will create: LeadHarvester-Mac-v1.0.0.zip
+
+3. mac/README.txt
+   - Instructions for Mac users (included in Mac ZIP)
+
+
+STEP-BY-STEP GUIDE
+------------------
+
+FOR WINDOWS PACKAGE (Already Ready!):
+1. Upload "LeadHarvester-Windows-v1.0.0.zip" to Gumroad
+2. Done!
+
+FOR MAC PACKAGE:
+1. Open Terminal on your Mac
+2. Navigate to this folder:
+   cd /path/to/lead-harvester/gumroad-release
+3. Make the script executable:
+   chmod +x BUILD_MAC_PACKAGE.sh
+4. Run the script:
+   ./BUILD_MAC_PACKAGE.sh
+5. Upload "LeadHarvester-Mac-v1.0.0.zip" to Gumroad
+
+
+GUMROAD PRODUCT SETUP
+---------------------
+
+Suggested Product Name:
+  LeadHarvester - Google Maps Lead Extractor
+
+Suggested Description:
+  Extract business leads from Google Maps in seconds.
+  Get contact info, ratings, reviews, and more.
+
+  Features:
+  - Extract unlimited leads from Google Maps
+  - Get phone numbers, websites, addresses
+  - Export to CSV or JSON
+  - Works offline (data stored locally)
+  - One-time purchase (no subscription!)
+
+  Available for Windows and macOS.
+
+Suggested Pricing:
+  - Single license: $49-99
+  - Consider offering bundles or lifetime updates
+
+Product Variants:
+  - Variant 1: Windows Version
+  - Variant 2: macOS Version
+  - Variant 3: Bundle (Both Platforms)
+
+
+UPDATING FOR FUTURE VERSIONS
+----------------------------
+When you release a new version:
+
+1. Update version in package.json
+2. Make your code changes
+3. For Windows: Run this on any machine with the repo:
+   cd lead-harvester
+   npm run build
+   # Windows files will be in release/win-unpacked/
+
+4. For Mac: Run on your Mac:
+   cd lead-harvester/gumroad-release
+   ./BUILD_MAC_PACKAGE.sh
+
+5. Update the ZIP files and upload to Gumroad
+6. Notify existing customers of the update
+
+
+CUSTOMER SUPPORT TIPS
+---------------------
+Common issues customers may have:
+
+Windows:
+- "Windows protected your PC" - Normal, click More Info > Run Anyway
+- App won't start - Make sure they extracted the ZIP first
+
+Mac:
+- "App is from unidentified developer" - Right-click > Open
+- "App is damaged" - Run: xattr -cr /Applications/LeadHarvester.app
+
+
+LICENSE/LEGAL
+-------------
+Consider adding to your Gumroad product:
+- License allows use on 2 personal computers
+- No redistribution or resale
+- Updates included for X months/lifetime
+- Refund policy (Gumroad default is 30 days)
+
+========================================
+    Good luck with your sales!
+========================================
