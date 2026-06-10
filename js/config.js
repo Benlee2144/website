@@ -13,12 +13,13 @@ window.REALM_CONFIG = {
          it is safe to commit. Your data is protected by the
          security rules in firestore.rules, not by hiding this key. */
   firebase: {
-    apiKey:            "YOUR_API_KEY",
-    authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId:         "YOUR_PROJECT_ID",
-    storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId:             "YOUR_APP_ID"
+    apiKey:            "AIzaSyDaLJ2-ZRciuvH3dAnrcA6WgJyU4bpww54",
+    authDomain:        "kingdomcovers-prayer-realm.firebaseapp.com",
+    projectId:         "kingdomcovers-prayer-realm",
+    storageBucket:     "kingdomcovers-prayer-realm.firebasestorage.app",
+    messagingSenderId: "1040878986291",
+    appId:             "1:1040878986291:web:b13c29dc7d3e4455d4af46",
+    measurementId:     "G-6BXPQERP1J"
   },
 
   /* 2 ▸ Keeper accounts (you). These Google emails see the
