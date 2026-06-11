@@ -527,10 +527,10 @@ main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; paddi
 
 /* ═══ PRAYER CARDS ═══════════════════════════════════════════════ */
 
-#prayerGrid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+#prayerGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 
 .prayer-card {
-  padding: 20px 22px 16px;
+  padding: 20px 22px 16px; min-width: 0;
   animation: cardIn .8s var(--ease-realm) both;
   transition: transform .35s var(--ease-realm), box-shadow .35s;
 }
@@ -887,9 +887,9 @@ main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; paddi
 }
 .dw-manna b { color: var(--gold); font-weight: 600; }
 .dw-prompt { font-size: 13px; color: var(--ink-dim); margin-bottom: 14px; }
-#dwList { display: grid; gap: 9px; }
+#dwList { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
 .dw-item {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; min-width: 0;
   padding: 11px 13px; border-radius: 14px;
   background: rgba(5, 3, 14, .45);
   border: 1px solid rgba(243, 201, 105, .14);
@@ -1004,7 +1004,7 @@ footer {
 }
 
 @media (min-width: 880px) {
-  #prayerGrid { grid-template-columns: 1fr 1fr; align-items: start; }
+  #prayerGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .prayer-card.span2 { grid-column: span 2; }
 }
 
