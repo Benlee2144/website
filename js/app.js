@@ -1518,7 +1518,7 @@ function startSky() {
   const seedStars = () => {
     sc.width = innerWidth * devicePixelRatio; sc.height = innerHeight * devicePixelRatio;
     sx.scale(devicePixelRatio, devicePixelRatio);
-    stars = Array.from({ length: small ? 80 : 150 }, () => ({
+    stars = Array.from({ length: small ? 50 : 150 }, () => ({
       x: Math.random() * innerWidth, y: Math.random() * innerHeight,
       r: Math.random() * 1.3 + .3, p: Math.random() * Math.PI * 2,
       s: .4 + Math.random() * .9,
@@ -1536,7 +1536,7 @@ function startSky() {
   const seedEmbers = () => {
     ec.width = innerWidth * devicePixelRatio; ec.height = innerHeight * devicePixelRatio;
     ex.scale(devicePixelRatio, devicePixelRatio);
-    embers = Array.from({ length: small ? 26 : 54 }, () => {
+    embers = Array.from({ length: small ? 16 : 54 }, () => {
       const e = newEmber(); e.y = Math.random() * innerHeight; return e;
     });
   };
@@ -1726,7 +1726,7 @@ function startGL() {
         uTime = gl.getUniformLocation(prog, 'u_time'),
         uPtr = gl.getUniformLocation(prog, 'u_ptr');
 
-  const SCALE = 0.6;
+  const SCALE = innerWidth < 720 ? 0.42 : 0.6;   // lighter shader on phones
   const resize = () => { canvas.width = Math.round(innerWidth * SCALE); canvas.height = Math.round(innerHeight * SCALE); gl.viewport(0, 0, canvas.width, canvas.height); };
   resize(); addEventListener('resize', resize);
   let px = 0.5, py = 0.5, tpx = 0.5, tpy = 0.5;

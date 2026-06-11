@@ -82,6 +82,9 @@ body::after {
 #sky {
   position: fixed; inset: 0; overflow: hidden;
   z-index: 0; pointer-events: none;
+  /* own compositor layer + isolation so scrolling content doesn't force
+     the animated canvases to repaint — smoother scrolling on phones */
+  transform: translateZ(0); contain: strict;
 }
 #sky > * { position: absolute !important; }
 
@@ -267,9 +270,9 @@ body::after {
   border-bottom: 1px solid rgba(243, 201, 105, .12);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand-mark {
-  display: grid; place-items: center;
+  display: grid; place-items: center; flex: none;
   width: 42px; height: 42px; border-radius: 50%;
   color: var(--gold-bright);
   background: radial-gradient(circle at 35% 30%, #2a1f55, #131038);
@@ -284,7 +287,8 @@ body::after {
 .brand-name em { font-style: normal; color: var(--gold); }
 .brand-sub { font-size: 10px; letter-spacing: .42em; color: var(--ink-faint); text-transform: uppercase; }
 
-.crown-right { display: flex; align-items: center; gap: 11px; }
+.crown-right { display: flex; align-items: center; gap: 11px; flex: none; }
+.crown-right > * { flex: none; }
 
 #soulsPill {
   display: inline-flex; align-items: center; gap: 7px;
@@ -1017,17 +1021,32 @@ footer {
   .rays { width: 280vmax; }
   #mapStage { aspect-ratio: 975 / 610; }
   .stat-rule { display: none; }
-  /* keep the crown from ever forcing the page wider than the phone */
-  #crown { padding: 12px 14px; gap: 8px; }
-  .crown-right { gap: 8px; }
-  .brand { gap: 9px; min-width: 0; }
-  .brand-name { font-size: 14px; letter-spacing: .12em; overflow: hidden; text-overflow: ellipsis; }
-  #soulsPill, #flamePill { padding: 6px 9px; }
+  /* crown: let the wordmark take the room it can and truncate, while the
+     controls keep their size — so nothing ever overlaps or overflows */
+  #crown { padding: 12px 13px; gap: 8px; }
+  .brand { flex: 1 1 auto; gap: 9px; min-width: 0; }
+  .brand-text { min-width: 0; }
+  .brand-name { font-size: 13px; letter-spacing: .09em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crown-right { gap: 7px; }
+  #soulsPill, #flamePill { display: none; }   /* presence + streak live on the map/altar; keep the crown clean on phones */
   .icon-btn { width: 36px; height: 36px; }
+
+  /* ── scroll performance ──────────────────────────────────────────
+     backdrop-filter blur is the #1 cause of mobile scroll jank; drop it
+     and lean on slightly more opaque panels instead. Kill the animated
+     film grain on phones too. */
+  .glass, #crown, .room-tab, #dmPanel, #mapTip, .toast {
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  }
+  .glass { background: rgba(17, 11, 38, .9); }
+  #crown { background: linear-gradient(180deg, rgba(6, 4, 15, .97), rgba(6, 4, 15, .82) 70%, rgba(6,4,15,.4)); }
+  .room-tab { background: rgba(17, 11, 38, .9); }
+  body::after { display: none; }           /* film grain off on mobile */
+  .prayer-card { content-visibility: auto; contain-intrinsic-size: 240px; }
 }
 
-@media (max-width: 380px) {
-  .brand-name { display: none; }   /* on the smallest phones, the cross-mark stands alone */
+@media (max-width: 360px) {
+  .brand-name { display: none; }   /* on the tiniest phones, the cross-mark stands alone */
 }
 
 @media (min-width: 880px) {
