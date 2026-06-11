@@ -325,7 +325,9 @@ body::after {
 
 main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; padding: 0 clamp(14px, 4vw, 32px) 90px; }
 
-#hero { position: relative; text-align: center; padding: clamp(48px, 9vh, 96px) 0 36px; }
+/* overflow:hidden clips the spinning halo's (invisible, transparent) square
+   corners so a rotating decorative box can never widen the page on mobile */
+#hero { position: relative; text-align: center; padding: clamp(48px, 9vh, 96px) 0 36px; overflow: hidden; }
 
 .hero-halo {
   position: absolute; left: 50%; top: 46%; pointer-events: none;
@@ -336,7 +338,13 @@ main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; paddi
     transparent 48%, rgba(124, 92, 255, .16) 62%, transparent 78%);
   -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%, #000 66%, transparent 68%);
           mask: radial-gradient(circle, transparent 62%, #000 64%, #000 66%, transparent 68%);
-  animation: spin 40s linear infinite;
+  /* keep the centering translate WHILE spinning — a bare rotate keyframe
+     would interpolate the translate away and drift the halo off-screen */
+  animation: haloSpin 40s linear infinite;
+}
+@keyframes haloSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .hero-eyebrow {
