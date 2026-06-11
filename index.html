@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/realm.css?v=7">
+  <link rel="stylesheet" href="css/realm.css?v=8">
 </head>
 <body data-room="altar">
 
@@ -48,15 +48,17 @@
     </defs>
   </svg>
 
-  <!-- ✦ Atmosphere layers -->
-  <canvas id="glCanvas" aria-hidden="true"></canvas>
-  <canvas id="skyStars" aria-hidden="true"></canvas>
-  <canvas id="skyEmbers" aria-hidden="true"></canvas>
-  <div class="aurora a1" aria-hidden="true"></div>
-  <div class="aurora a2" aria-hidden="true"></div>
-  <div class="aurora a3" aria-hidden="true"></div>
-  <div class="rays" aria-hidden="true"></div>
-  <div id="cursorHalo" aria-hidden="true"></div>
+  <!-- ✦ Atmosphere layers (clipped to the viewport so they never widen the page) -->
+  <div id="sky" aria-hidden="true">
+    <canvas id="glCanvas"></canvas>
+    <canvas id="skyStars"></canvas>
+    <canvas id="skyEmbers"></canvas>
+    <div class="aurora a1"></div>
+    <div class="aurora a2"></div>
+    <div class="aurora a3"></div>
+    <div class="rays"></div>
+    <div id="cursorHalo"></div>
+  </div>
 
   <!-- ✦ Entry veil — cinematic -->
   <div id="veil">
@@ -271,8 +273,8 @@
   <div id="toasts" aria-live="polite"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="js/config.js?v=7"></script>
-  <script src="js/usa.js?v=7"></script>
-  <script type="module" src="js/app.js?v=7"></script>
+  <script src="js/config.js?v=8"></script>
+  <script src="js/usa.js?v=8"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>
