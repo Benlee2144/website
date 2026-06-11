@@ -1008,6 +1008,147 @@ footer {
   .prayer-card.span2 { grid-column: span 2; }
 }
 
+/* ═══ WEBGL LIQUID-LIGHT BACKGROUND ══════════════════════════════ */
+
+#glCanvas {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+#glCanvas[hidden] { display: none; }
+
+/* ═══ GOLD FOIL — living brushed-gold text ═══════════════════════ */
+
+.foil {
+  background: linear-gradient(100deg,
+    #9a7126 0%, var(--gold) 18%, #fff3d0 32%, var(--gold) 46%,
+    var(--gold-deep) 60%, var(--gold) 74%, #fff3d0 86%, var(--gold) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: foilSweep 7s linear infinite;
+}
+@keyframes foilSweep { to { background-position: -250% 0; } }
+
+/* ═══ 3D DEPTH — card tilt ═══════════════════════════════════════ */
+
+.tilt { transform-style: preserve-3d; transition: transform .4s var(--ease-realm); will-change: transform; }
+.tilt.tilting { transition: transform .08s linear; }
+.tilt.tilting::after { opacity: 1; }
+.tilt > * { position: relative; z-index: 1; }
+.tilt.tilting > .composer-head,
+.tilt.tilting > .watch-head,
+.tilt.tilting > .dw-head { transform: translateZ(26px); }
+/* a moving sheen that follows the cursor across the glass */
+.tilt::before {
+  background:
+    radial-gradient(220px 220px at var(--gx, 50%) var(--gy, 0%), rgba(255, 240, 200, .10), transparent 60%),
+    radial-gradient(420px 120px at 50% 0%, rgba(243, 201, 105, .10), transparent 70%);
+}
+
+/* ═══ SCROLL REVEALS ═════════════════════════════════════════════ */
+
+[data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity 1s var(--ease-realm), transform 1s var(--ease-realm); }
+[data-reveal].shown { opacity: 1; transform: none; }
+
+/* ═══ CINEMATIC VEIL ═════════════════════════════════════════════ */
+
+.veil-clouds { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.veil-clouds i {
+  position: absolute; border-radius: 50%;
+  filter: blur(40px); opacity: .5;
+  transition: transform 1.4s var(--ease-realm), opacity 1.2s ease;
+}
+.veil-clouds i:nth-child(1) { left: -10%; top: 10%; width: 60vw; height: 50vh; background: radial-gradient(circle, #241a52, transparent 70%); }
+.veil-clouds i:nth-child(2) { right: -12%; top: 4%; width: 55vw; height: 55vh; background: radial-gradient(circle, #1a1340, transparent 70%); }
+.veil-clouds i:nth-child(3) { left: -8%; bottom: -6%; width: 65vw; height: 55vh; background: radial-gradient(circle, #14224a, transparent 70%); }
+.veil-clouds i:nth-child(4) { right: -10%; bottom: -8%; width: 60vw; height: 55vh; background: radial-gradient(circle, #1d1442, transparent 70%); }
+#veil.parting .veil-clouds i:nth-child(odd) { transform: translateX(-60vw) scale(1.3); opacity: 0; }
+#veil.parting .veil-clouds i:nth-child(even) { transform: translateX(60vw) scale(1.3); opacity: 0; }
+
+.veil-godlight {
+  position: absolute; left: 50%; top: -20%; width: 70vw; height: 120vh;
+  transform: translateX(-50%); pointer-events: none; opacity: 0;
+  background: conic-gradient(from 180deg at 50% 0,
+    transparent 0deg, rgba(255, 230, 170, .14) 8deg, transparent 16deg,
+    transparent 24deg, rgba(255, 230, 170, .10) 32deg, transparent 40deg);
+  -webkit-mask-image: linear-gradient(#000, transparent 70%); mask-image: linear-gradient(#000, transparent 70%);
+  transition: opacity 1.4s ease;
+}
+#veil.parting .veil-godlight { opacity: 1; }
+
+.veil-flash {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 50% 35%, #fff8e8, rgba(255, 240, 200, .5) 30%, transparent 65%);
+}
+#veil.parting .veil-flash { animation: veilFlash 1.6s ease-out .35s forwards; }
+@keyframes veilFlash { 0% { opacity: 0; } 35% { opacity: .9; } 100% { opacity: 0; } }
+
+.portal-ring.r3 { inset: 32px; animation-duration: 18s; opacity: .4; }
+#veil.open { transform: scale(1.6); filter: blur(8px); }
+
+/* ═══ WATCH KEPT — full-screen seal ══════════════════════════════ */
+
+#keptOverlay {
+  position: fixed; inset: 0; z-index: 96;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: radial-gradient(circle at 50% 42%, rgba(40, 28, 8, .82), rgba(6, 4, 15, .94));
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; transition: opacity .6s ease;
+}
+#keptOverlay[hidden] { display: none; }
+#keptOverlay.show { opacity: 1; }
+.kept-burst {
+  position: absolute; left: 50%; top: 42%; width: 5px; height: 5px; transform: translate(-50%, -50%);
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fff6e0, transparent 70%);
+  box-shadow: 0 0 80px 40px rgba(243, 201, 105, .5);
+}
+#keptOverlay.show .kept-burst { animation: keptBurst 1.4s var(--ease-realm) forwards; }
+@keyframes keptBurst { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(60); opacity: 0; } }
+.kept-card { position: relative; padding: 24px; max-width: 460px; transform: scale(.9); transition: transform .7s var(--ease-realm); }
+#keptOverlay.show .kept-card { transform: scale(1); }
+.kept-seal {
+  width: 96px; height: 96px; margin: 0 auto 22px; border-radius: 50%;
+  display: grid; place-items: center; color: #2a1d04;
+  background: radial-gradient(circle at 38% 30%, #fff7e0, var(--gold) 55%, #c89a3a);
+  box-shadow: 0 0 50px rgba(243, 201, 105, .7), inset 0 -8px 16px rgba(154, 113, 38, .5);
+  animation: breathe 3s ease-in-out infinite;
+}
+.kept-seal .icon { width: 48px; height: 48px; stroke-width: 2.4; }
+.kept-eyebrow { font-family: var(--font-display); font-size: 12px; letter-spacing: .5em; color: var(--gold); margin-bottom: 12px; }
+.kept-title { font-family: var(--font-display); font-weight: 900; font-size: clamp(40px, 9vw, 68px); letter-spacing: .1em; }
+.kept-sub { font-family: var(--font-verse); font-style: italic; font-size: 19px; color: var(--ink-dim); margin: 14px 0 26px; line-height: 1.5; }
+.kept-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* ═══ LEAFLET — themed dark + gold ═══════════════════════════════ */
+
+#mapStage .leaflet-container { background: #050310; font-family: var(--font-ui); }
+#mapStage .leaflet-tile-pane { filter: saturate(.62) brightness(.92) contrast(1.05) sepia(.18) hue-rotate(-8deg); }
+#mapStage #mapCanvas { position: absolute; inset: 0; z-index: 500; pointer-events: none; }
+#mapStage #mapCanvas.solo { pointer-events: auto; }
+.leaflet-control-zoom a {
+  background: rgba(14, 9, 34, .92) !important; color: var(--gold) !important;
+  border: 1px solid rgba(243, 201, 105, .25) !important;
+  font-weight: 700; transition: all .2s;
+}
+.leaflet-control-zoom a:hover { background: rgba(243, 201, 105, .18) !important; color: var(--gold-bright) !important; }
+.leaflet-bar { box-shadow: 0 6px 20px rgba(0, 0, 0, .5) !important; border-radius: 12px !important; overflow: hidden; }
+.leaflet-control-attribution {
+  background: rgba(6, 4, 15, .7) !important; color: var(--ink-faint) !important;
+  font-size: 10px !important; backdrop-filter: blur(4px);
+}
+.leaflet-control-attribution a { color: var(--ink-dim) !important; }
+.map-ctrl {
+  position: absolute; right: 12px; bottom: 30px; z-index: 600;
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+  display: grid; place-items: center; color: var(--gold);
+  background: rgba(14, 9, 34, .92); border: 1px solid rgba(243, 201, 105, .3);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .5); transition: all .2s;
+}
+.map-ctrl:hover { background: rgba(243, 201, 105, .18); color: var(--gold-bright); }
+.map-ctrl[hidden] { display: none; }
+#mapTip { z-index: 700; }
+#mapLoading { z-index: 800; }
+
 /* ═══ REDUCED MOTION ═════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1016,6 +1157,8 @@ footer {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
-  .rays, .aurora, #cursorHalo, .hero-halo { display: none; }
+  .rays, .aurora, #cursorHalo, .hero-halo, #glCanvas { display: none; }
   body::after { display: none; }
+  [data-reveal] { opacity: 1; transform: none; }
+  .tilt { transform: none !important; }
 }

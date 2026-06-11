@@ -842,24 +842,22 @@ async function updateStats() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   THE WATCH — the nation, live (dot-matrix USA, beacons of prayer)
+   THE WATCH — the nation, live. Real map tiles (Leaflet + CARTO dark)
+   with a living layer of prayer-light: glowing beacons, a prayer
+   heatmap, fly-to, and real-time pulses when prayer moves. Falls back
+   to a baked dot-matrix USA if the map library is ever blocked.
    ═══════════════════════════════════════════════════════════════════ */
 
 const Watch = (() => {
-  let started = false, cv, cx, W = 0, H = 0;
-  let ox = 0, oy = 0, mapW = 0, mapH = 0;   // the nation, letterboxed in the stage
-  let mask = null;                          // land raster in atlas space
-  let dots = null;                          // prerendered land-dot + border layer
-  let beacons = [];                         // projected interactive points
-  let hover = null;
-  let t = 0;
+  let started = false, map = null, leaflet = false;
+  let cv, cx, W = 0, H = 0, t = 0;
+  let beacons = [], hover = null, pulses = [], lastPts = [];
+  const amenSeen = new Map();   // prayerId → last prayedCount (to ripple new amens)
+  let seeded = false;
 
-  /* The United States — Albers USA, the projection of every classic
-     American map (lower 48 with Alaska & Hawaii insets). Constants
-     pixel-match the baked us-atlas data: scale 1300, translate
-     (487.5, 305). Math adapted from d3-geo (ISC license). */
-  const UW = 975, UH = 610, ASPECT = UW / UH;
-  const RAD = Math.PI / 180;
+  /* ── baked Albers USA fallback (only if Leaflet is unavailable) ── */
+  let ox = 0, oy = 0, mapW = 0, mapH = 0, mask = null, dots = null;
+  const UW = 975, UH = 610, ASPECT = UW / UH, RAD = Math.PI / 180;
   function conicUsa(parallels, rotateLng, center, scale, translate) {
     const p0 = parallels[0] * RAD, p1 = parallels[1] * RAD;
     const sy0 = Math.sin(p0), n = (sy0 + Math.sin(p1)) / 2,
@@ -876,115 +874,93 @@ const Watch = (() => {
       return [translate[0] + scale * (xy[0] - base[0]), translate[1] - scale * (xy[1] - base[1])];
     };
   }
-  const K = 1300, TX = 487.5, TY = 305;
-  const projL48 = conicUsa([29.5, 45.5], 96, [-.6, 38.7], K, [TX, TY]);
-  const projAK  = conicUsa([55, 65], 154, [-2, 58.5], K * .35, [TX - .307 * K, TY + .201 * K]);
-  const projHI  = conicUsa([8, 18], 157, [-3, 19.9], K, [TX - .205 * K, TY + .212 * K]);
+  const K = 1300;
+  const projL48 = conicUsa([29.5, 45.5], 96, [-.6, 38.7], K, [487.5, 305]);
+  const projAK  = conicUsa([55, 65], 154, [-2, 58.5], K * .35, [487.5 - .307 * K, 305 + .201 * K]);
+  const projHI  = conicUsa([8, 18], 157, [-3, 19.9], K, [487.5 - .205 * K, 305 + .212 * K]);
   const albersUsa = (lng, lat) => {
     if (lat >= 18 && lat <= 23.5 && lng >= -161 && lng <= -154) return projHI(lng, lat);
     if (lat >= 50 && (lng <= -128 || lng >= 170)) return projAK(lng, lat);
     return projL48(lng, lat);
   };
-  /* → canvas px, or null when the light falls beyond this map */
-  const projPx = (lng, lat) => {
+  function albersPx(lng, lat) {
     const u = albersUsa(lng, lat);
     if (u[0] < -10 || u[0] > UW + 10 || u[1] < -10 || u[1] > UH + 10) return null;
     return [ox + u[0] / UW * mapW, oy + u[1] / UH * mapH];
-  };
-
-  /* The nation ships with the site (js/usa.js) — no CDN, no
-     ad-blocker failures, renders instantly. */
+  }
   function buildMask() {
     if (!window.REALM_USA) return;
     const off = el('canvas', { width: UW * 2, height: UH * 2 });
-    const oc = off.getContext('2d');
-    oc.scale(2, 2);
-    oc.fillStyle = '#fff';
+    const oc = off.getContext('2d'); oc.scale(2, 2); oc.fillStyle = '#fff';
     for (const poly of window.REALM_USA.states) {
       oc.beginPath();
-      for (const ring of poly) {
-        ring.forEach(([x, y], i) => i ? oc.lineTo(x, y) : oc.moveTo(x, y));
-        oc.closePath();
-      }
+      for (const ring of poly) { ring.forEach(([x, y], k) => k ? oc.lineTo(x, y) : oc.moveTo(x, y)); oc.closePath(); }
       oc.fill('evenodd');
     }
     mask = oc.getImageData(0, 0, UW * 2, UH * 2);
   }
-
   function landAt(x01, y01) {
     if (!mask) return false;
     const mx = Math.min(UW * 2 - 1, Math.max(0, Math.round(x01 * UW * 2)));
     const my = Math.min(UH * 2 - 1, Math.max(0, Math.round(y01 * UH * 2)));
     return mask.data[(my * UW * 2 + mx) * 4 + 3] > 100;
   }
-
   function buildDots() {
     if (!W || !H || !mapW) return;
     dots = el('canvas', { width: W, height: H });
     const dc = dots.getContext('2d');
-    const step = Math.max(2.6, mapW / 320);
-    const r = Math.max(.8, step * .34);
-    for (let y = oy + step / 2; y < oy + mapH; y += step) {
+    const step = Math.max(2.6, mapW / 320), r = Math.max(.8, step * .34);
+    for (let y = oy + step / 2; y < oy + mapH; y += step)
       for (let x = ox + step / 2; x < ox + mapW; x += step) {
         const x01 = (x - ox) / mapW, y01 = (y - oy) / mapH;
-        const isLand = mask ? landAt(x01, y01)
-          /* veiled fallback: a graticule of faint dots */
-          : (Math.abs(y01 * 180 - 90) % 15 < 1.1 || Math.abs(x01 * 360 - 180) % 15 < 1.1);
-        if (!isLand) continue;
-        const a = mask ? (.25 + Math.random() * .28) : .12;
-        dc.fillStyle = `rgba(158, 144, 205, ${a})`;
-        dc.beginPath();
-        dc.arc(x + (Math.random() - .5) * .8, y + (Math.random() - .5) * .8, r, 0, 7);
-        dc.fill();
+        if (!(mask ? landAt(x01, y01) : (Math.abs(y01 * 180 - 90) % 15 < 1.1 || Math.abs(x01 * 360 - 180) % 15 < 1.1))) continue;
+        dc.fillStyle = `rgba(158, 144, 205, ${mask ? .25 + Math.random() * .28 : .12})`;
+        dc.beginPath(); dc.arc(x + (Math.random() - .5) * .8, y + (Math.random() - .5) * .8, r, 0, 7); dc.fill();
       }
-    }
-    /* state borders + national outline — the lines that make it read
-       as THE American map */
     if (window.REALM_USA) {
       const sx = mapW / UW, sy = mapH / UH;
       const stroke = (lines, style, width) => {
-        dc.strokeStyle = style; dc.lineWidth = width;
-        dc.lineJoin = 'round'; dc.lineCap = 'round';
-        for (const line of lines) {
-          dc.beginPath();
-          line.forEach(([x, y], i) =>
-            i ? dc.lineTo(ox + x * sx, oy + y * sy) : dc.moveTo(ox + x * sx, oy + y * sy));
-          dc.stroke();
-        }
+        dc.strokeStyle = style; dc.lineWidth = width; dc.lineJoin = 'round'; dc.lineCap = 'round';
+        for (const line of lines) { dc.beginPath(); line.forEach(([x, y], k) => k ? dc.lineTo(ox + x * sx, oy + y * sy) : dc.moveTo(ox + x * sx, oy + y * sy)); dc.stroke(); }
       };
       stroke(window.REALM_USA.borders, 'rgba(167, 152, 220, .30)', Math.max(.6, mapW / 1600));
       stroke(window.REALM_USA.outline, 'rgba(243, 201, 105, .40)', Math.max(.8, mapW / 1300));
     }
   }
 
+  /* ── projection that serves both modes ── */
+  function projPx(lng, lat) {
+    if (leaflet && map) { const p = map.latLngToContainerPoint([lat, lng]); return [p.x, p.y]; }
+    return albersPx(lng, lat);
+  }
+
   function rebuildBeacons() {
-    if (!W || !H) return;
     const me = state.user?.uid;
     const fresh = Date.now() - 150000;
     const out = [];
-    let beyond = 0;
     for (const p of state.prayers) {
       if (!p.loc) continue;
-      const pt = projPx(p.loc.lng, p.loc.lat);
-      if (!pt) { beyond++; continue; }
-      out.push({ x: pt[0], y: pt[1], type: 'prayer', id: p.id, label: displayName(p),
+      out.push({ lat: p.loc.lat, lng: p.loc.lng, type: 'prayer', id: p.id, label: displayName(p),
                  text: p.text.length > 70 ? p.text.slice(0, 70) + '…' : p.text,
-                 phase: (p.id.charCodeAt(p.id.length - 1) || 0) % 7 });
+                 amens: p.prayedCount || 0, phase: (p.id.charCodeAt(p.id.length - 1) || 0) % 7 });
     }
-    for (const s of state.souls) {
-      if (s.lat == null || s.lastSeen < fresh) continue;
-      const pt = projPx(s.lng, s.lat);
-      if (!pt) { beyond++; continue; }
-      out.push({ x: pt[0], y: pt[1], type: s.uid === me ? 'me' : 'soul', id: s.uid,
-                 label: s.uid === me ? 'You — keeping watch' : s.name,
-                 text: s.uid === me ? '' : (s.streak > 1 ? `keeping watch — day ${s.streak} flame` : 'keeping watch in the realm'),
-                 phase: pt[0] % 7 });
+    for (const sObj of state.souls) {
+      if (sObj.lat == null || sObj.lastSeen < fresh) continue;
+      out.push({ lat: sObj.lat, lng: sObj.lng, type: sObj.uid === me ? 'me' : 'soul', id: sObj.uid,
+                 label: sObj.uid === me ? 'You — keeping watch' : sObj.name,
+                 text: sObj.uid === me ? '' : (sObj.streak > 1 ? `keeping watch — day ${sObj.streak} flame` : 'keeping watch'),
+                 amens: 0, phase: hashStr(sObj.uid) % 7 });
     }
     beacons = out;
-    const note = $('#beyondNote');
-    if (note) {
-      note.hidden = !beyond;
-      if (beyond) note.textContent = `+${beyond} keeping watch beyond this map`;
+  }
+
+  function notePulse(lng, lat, color) { pulses.push({ lng, lat, t0: t, color }); if (pulses.length > 50) pulses.shift(); }
+  function detectChanges() {
+    if (!seeded) { for (const p of state.prayers) amenSeen.set(p.id, p.prayedCount || 0); seeded = true; return; }
+    for (const p of state.prayers) {
+      const prev = amenSeen.get(p.id);
+      if (prev === undefined) { amenSeen.set(p.id, p.prayedCount || 0); if (p.loc) notePulse(p.loc.lng, p.loc.lat, [255, 250, 240]); }
+      else if ((p.prayedCount || 0) > prev) { amenSeen.set(p.id, p.prayedCount); if (p.loc) notePulse(p.loc.lng, p.loc.lat, [243, 201, 105]); }
     }
   }
 
@@ -993,103 +969,138 @@ const Watch = (() => {
     if (!started || document.hidden || !cx) return;
     t += .016;
     cx.clearRect(0, 0, W, H);
-    if (dots) {
-      cx.globalAlpha = .85 + Math.sin(t * .6) * .12;
-      cx.drawImage(dots, 0, 0);
-      cx.globalAlpha = 1;
-    }
-    /* slow scanning light across the earth */
-    const sx = ((t * 26) % (W * 1.6)) - W * .3;
-    const grad = cx.createLinearGradient(sx - 130, 0, sx + 130, 0);
-    grad.addColorStop(0, 'rgba(243,201,105,0)');
-    grad.addColorStop(.5, 'rgba(243,201,105,.05)');
-    grad.addColorStop(1, 'rgba(243,201,105,0)');
-    cx.fillStyle = grad;
-    cx.fillRect(0, 0, W, H);
+    if (!leaflet && dots) { cx.globalAlpha = .85 + Math.sin(t * .6) * .12; cx.drawImage(dots, 0, 0); cx.globalAlpha = 1; }
 
+    const pts = [];
     for (const b of beacons) {
+      const p = projPx(b.lng, b.lat);
+      if (!p || p[0] < -50 || p[0] > W + 50 || p[1] < -50 || p[1] > H + 50) continue;
+      pts.push({ b, x: p[0], y: p[1] });
+    }
+    lastPts = pts;
+
+    /* prayer heatmap — additive gold density */
+    cx.globalCompositeOperation = 'lighter';
+    for (const { b, x, y } of pts) {
+      if (b.type !== 'prayer') continue;
+      const rad = 24 + Math.min(46, (b.amens || 0) * 6);
+      const g = cx.createRadialGradient(x, y, 0, x, y, rad);
+      g.addColorStop(0, 'rgba(243, 176, 74, .13)'); g.addColorStop(1, 'rgba(243, 176, 74, 0)');
+      cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, rad, 0, 7); cx.fill();
+    }
+    cx.globalCompositeOperation = 'source-over';
+
+    /* live pulses */
+    for (let i = pulses.length - 1; i >= 0; i--) {
+      const pu = pulses[i], age = t - pu.t0;
+      if (age > 2.4) { pulses.splice(i, 1); continue; }
+      const p = projPx(pu.lng, pu.lat); if (!p) continue;
+      cx.strokeStyle = `rgba(${pu.color[0]},${pu.color[1]},${pu.color[2]},${.55 * (1 - age / 2.4)})`;
+      cx.lineWidth = 2.2 * (1 - age / 2.4) + .4;
+      cx.beginPath(); cx.arc(p[0], p[1], age * 64, 0, 7); cx.stroke();
+    }
+
+    /* beacons */
+    for (const { b, x, y } of pts) {
       const pulse = .5 + .5 * Math.sin(t * 2.2 + b.phase);
       const base = b.type === 'prayer' ? [243, 201, 105] : b.type === 'me' ? [255, 250, 240] : [159, 139, 255];
-      const r = (b.type === 'me' ? 4 : 3) + pulse * 1.6 + (hover === b ? 1.5 : 0);
-      const g = cx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r * 4);
-      g.addColorStop(0, `rgba(${base[0]},${base[1]},${base[2]},.9)`);
+      const r = (b.type === 'me' ? 4.5 : 3) + pulse * 1.6 + (hover === b ? 1.8 : 0);
+      const g = cx.createRadialGradient(x, y, 0, x, y, r * 4.2);
+      g.addColorStop(0, `rgba(${base[0]},${base[1]},${base[2]},.95)`);
       g.addColorStop(.35, `rgba(${base[0]},${base[1]},${base[2]},.35)`);
       g.addColorStop(1, `rgba(${base[0]},${base[1]},${base[2]},0)`);
-      cx.fillStyle = g;
-      cx.beginPath(); cx.arc(b.x, b.y, r * 4, 0, 7); cx.fill();
-      cx.fillStyle = `rgba(255,255,255,${.75 + pulse * .25})`;
-      cx.beginPath(); cx.arc(b.x, b.y, r * .42, 0, 7); cx.fill();
-      /* rising ring every few seconds */
+      cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r * 4.2, 0, 7); cx.fill();
+      cx.fillStyle = `rgba(255,255,255,${.78 + pulse * .22})`;
+      cx.beginPath(); cx.arc(x, y, r * .42, 0, 7); cx.fill();
       const ring = ((t * .55 + b.phase) % 3);
-      if (ring < 1.1) {
-        cx.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${.4 * (1.1 - ring)})`;
-        cx.lineWidth = 1.2;
-        cx.beginPath(); cx.arc(b.x, b.y, r + ring * 16, 0, 7); cx.stroke();
-      }
+      if (ring < 1.1) { cx.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${.4 * (1.1 - ring)})`; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(x, y, r + ring * 16, 0, 7); cx.stroke(); }
     }
+    if (hover) { const e = $('#mapTip'); e.style.left = tipX + 'px'; e.style.top = tipY + 'px'; }
   }
 
-  function size() {
-    const stage = $('#mapStage');
-    const rect = stage.getBoundingClientRect();
+  let tipX = 0, tipY = 0;
+  function showTip(b, x, y) { tipX = x; tipY = y; const e = $('#mapTip'); e.hidden = false; e.replaceChildren(el('b', {}, b.label), el('span', {}, b.text || '')); }
+  function pick(mx, my) { let best = null, bd = 20; for (const pt of lastPts) { const d = Math.hypot(pt.x - mx, pt.y - my); if (d < bd) { bd = d; best = pt.b; } } return best; }
+
+  function sizeCanvas() {
+    const rect = $('#mapStage').getBoundingClientRect();
     const dpr = Math.min(2, devicePixelRatio || 1);
     W = Math.round(rect.width); H = Math.round(rect.height);
-    mapW = Math.min(W, H * ASPECT); mapH = mapW / ASPECT;
-    ox = (W - mapW) / 2; oy = (H - mapH) / 2;
-    cv.width = W * dpr; cv.height = H * dpr;
-    cx = cv.getContext('2d');
-    cx.scale(dpr, dpr);
-    buildDots(); rebuildBeacons();
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    cx = cv.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!leaflet) { mapW = Math.min(W, H * ASPECT); mapH = mapW / ASPECT; ox = (W - mapW) / 2; oy = (H - mapH) / 2; buildDots(); }
   }
 
-  function pick(mx, my) {
-    let best = null, bd = 18;
-    for (const b of beacons) {
-      const d = Math.hypot(b.x - mx, b.y - my);
-      if (d < bd) { bd = d; best = b; }
+  function makeOverlay() { cv = el('canvas', { id: 'mapCanvas' }); $('#mapStage').append(cv); }
+
+  function flyToPrayer(b) {
+    if (map) map.flyTo([b.lat, b.lng], Math.max(map.getZoom(), 6), { duration: 1 });
+    switchRoom('altar');
+    const card = $(`.prayer-card[data-id="${b.id}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.animate([{ boxShadow: '0 0 0 rgba(243,201,105,0)' }, { boxShadow: '0 0 60px rgba(243,201,105,.55)' }, { boxShadow: '0 0 0 rgba(243,201,105,0)' }], { duration: 1800, easing: 'ease-out' });
     }
-    return best;
+  }
+
+  const USA_BOUNDS = [[24.5, -125], [49.5, -66.5]];
+  function recenter() { if (map) map.flyToBounds(USA_BOUNDS, { padding: [24, 24], duration: 1.2 }); }
+
+  function startLeaflet() {
+    leaflet = true;
+    map = L.map('mapStage', { zoomControl: true, attributionControl: true, worldCopyJump: true,
+      minZoom: 2, maxZoom: 12, zoomSnap: .5, scrollWheelZoom: 'center' }).setView([39.5, -98.35], 4);
+    const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      { subdomains: 'abcd', detectRetina: true, maxZoom: 19, attribution: '© OpenStreetMap, © CARTO' });
+    let hid = false; const hide = () => { if (hid) return; hid = true; $('#mapLoading').classList.add('gone'); };
+    tiles.on('load', hide); setTimeout(hide, 2500);
+    tiles.addTo(map);
+    makeOverlay();
+    $('#mapRecenter').hidden = false;
+    sizeCanvas();
+    map.on('resize', sizeCanvas);
+    addEventListener('resize', sizeCanvas);
+    const container = map.getContainer();
+    container.addEventListener('pointermove', e => {
+      const r = container.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+      hover = pick(mx, my);
+      if (hover) { showTip(hover, mx, my); container.style.cursor = hover.type === 'prayer' ? 'pointer' : ''; }
+      else { $('#mapTip').hidden = true; container.style.cursor = ''; }
+    }, { passive: true });
+    container.addEventListener('pointerleave', () => { hover = null; $('#mapTip').hidden = true; });
+    map.on('click', () => { if (hover?.type === 'prayer') flyToPrayer(hover); });
+    $('#mapRecenter').addEventListener('click', recenter);
+    rebuildBeacons(); frame();
+  }
+
+  function startFallback() {
+    leaflet = false;
+    makeOverlay();
+    cv.classList.add('solo');
+    try { buildMask(); } catch (e) { console.warn('land veiled:', e); }
+    $('#mapLoading').classList.add('gone');
+    sizeCanvas();
+    addEventListener('resize', sizeCanvas);
+    cv.addEventListener('pointermove', e => {
+      const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+      hover = pick(mx, my);
+      if (hover) { showTip(hover, mx, my); cv.style.cursor = hover.type === 'prayer' ? 'pointer' : 'crosshair'; }
+      else { $('#mapTip').hidden = true; cv.style.cursor = 'crosshair'; }
+    });
+    cv.addEventListener('pointerleave', () => { hover = null; $('#mapTip').hidden = true; });
+    cv.addEventListener('click', () => { if (hover?.type === 'prayer') flyToPrayer(hover); });
+    rebuildBeacons(); frame();
   }
 
   async function start() {
-    if (started) return;
-    started = true;
-    cv = $('#mapCanvas');
-    try { buildMask(); } catch (e) { console.warn('land veiled:', e); }
-    $('#mapLoading').classList.add('gone');
-    size();
-    addEventListener('resize', size);
-    const tip = $('#mapTip');
-    cv.addEventListener('pointermove', e => {
-      const r = cv.getBoundingClientRect();
-      hover = pick(e.clientX - r.left, e.clientY - r.top);
-      if (hover) {
-        tip.hidden = false;
-        tip.style.left = hover.x + 'px';
-        tip.style.top = hover.y + 'px';
-        tip.replaceChildren(el('b', {}, hover.label), el('span', {}, hover.text || ''));
-        cv.style.cursor = hover.type === 'prayer' ? 'pointer' : 'crosshair';
-      } else { tip.hidden = true; cv.style.cursor = 'crosshair'; }
-    });
-    cv.addEventListener('pointerleave', () => { hover = null; tip.hidden = true; });
-    cv.addEventListener('click', () => {
-      if (hover?.type === 'prayer') {
-        switchRoom('altar');
-        const card = $(`.prayer-card[data-id="${hover.id}"]`);
-        if (card) {
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          card.animate([
-            { boxShadow: '0 0 0 rgba(243,201,105,0)' },
-            { boxShadow: '0 0 60px rgba(243,201,105,.55)' },
-            { boxShadow: '0 0 0 rgba(243,201,105,0)' },
-          ], { duration: 1800, easing: 'ease-out' });
-        }
-      }
-    });
-    frame();
+    if (started) return; started = true;
+    if (window.L) { try { startLeaflet(); } catch (e) { console.error('map tiles failed, falling back:', e); startFallback(); } }
+    else startFallback();
   }
 
-  return { start, refresh: rebuildBeacons };
+  function refresh() { if (!started) return; detectChanges(); rebuildBeacons(); }
+
+  return { start, refresh, recenter };
 })();
 
 /* ── presence: my light on the map ────────────────────────────────── */
@@ -1261,14 +1272,12 @@ function renderDaily() {
     );
   }));
   foot.textContent = `${done} of ${picks.length} lifted today`;
-  const kept = done === picks.length;
+  const kept = done === picks.length && picks.length > 0;
   badge.hidden = !kept;
   const keptKey = `realm.kept.${dayInt()}`;
   if (kept && !localStorage.getItem(keptKey)) {
     try { localStorage.setItem(keptKey, '1'); } catch {}
-    const r = badge.getBoundingClientRect?.() || { left: innerWidth / 2, width: 0, top: innerHeight / 3 };
-    burst(r.left + r.width / 2, r.top || innerHeight / 3);
-    toast('Watch kept. Well done, good and faithful one.', 'gold');
+    celebrateKept();
   }
 }
 
@@ -1623,6 +1632,27 @@ class Ambience {
     this.master.gain.linearRampToValueAtTime(.0001, this.ctx.currentTime + 1);
     setTimeout(() => this.ctx && this.ctx.suspend(), 1200);
   }
+  /* a swelling major chord — for crossing the veil & keeping the watch */
+  chord() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = this._cc || (this._cc = new Ctx());
+      ctx.resume();
+      const now = ctx.currentTime;
+      const out = ctx.createGain();
+      out.gain.setValueAtTime(.0001, now);
+      out.gain.exponentialRampToValueAtTime(.16, now + .5);
+      out.gain.exponentialRampToValueAtTime(.0001, now + 3.4);
+      const rev = ctx.createBiquadFilter(); rev.type = 'lowpass'; rev.frequency.value = 2400;
+      out.connect(rev).connect(ctx.destination);
+      [261.63, 329.63, 392.0, 523.25, 659.25].forEach((f, k) => {
+        const o = ctx.createOscillator(); o.type = k > 3 ? 'triangle' : 'sine';
+        o.frequency.value = f; o.detune.value = (Math.random() - .5) * 6;
+        const g = ctx.createGain(); g.gain.value = k > 3 ? .25 : .5;
+        o.connect(g).connect(out); o.start(now + k * .07); o.stop(now + 3.6);
+      });
+    } catch { /* audio unavailable */ }
+  }
 }
 const ambience = new Ambience();
 
@@ -1631,6 +1661,168 @@ function setSound(on, fromGesture = false) {
   $('#soundBtn').classList.toggle('on', on);
   if (on && fromGesture) ambience.start();
   if (!on) ambience.stop();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE LOOK — WebGL liquid light, 3D depth, scroll reveals, celebration
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 1 ▸ Liquid-light background — godrays + gold mist + violet nebula,
+       reacting to the cursor. Falls back to the CSS aurora if WebGL
+       is unavailable. */
+function startGL() {
+  const canvas = $('#glCanvas');
+  if (REDUCED) { canvas.hidden = true; return; }
+  let gl = null;
+  try {
+    gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' })
+      || canvas.getContext('experimental-webgl');
+  } catch { gl = null; }
+  if (!gl || typeof gl.createShader !== 'function') { canvas.hidden = true; return; }
+
+  const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+  const fs = `
+    precision highp float;
+    uniform vec2 u_res; uniform float u_time; uniform vec2 u_ptr;
+    float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+    float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f);
+      float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+      return mix(mix(a,b,f.x),mix(c,d,f.x),f.y); }
+    float fbm(vec2 p){ float v=0.,a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.03+1.7; a*=.5; } return v; }
+    void main(){
+      vec2 uv = gl_FragCoord.xy/u_res.xy;
+      vec2 p = uv; p.x *= u_res.x/u_res.y;
+      float tm = u_time*0.025;
+      vec2 ptr = (u_ptr - 0.5);
+      float m = fbm(p*2.4 + vec2(tm, -tm*0.6) + ptr*0.4);
+      m = fbm(p*2.0 + m + vec2(-tm*0.5, tm*0.8));
+      vec2 c = vec2(u_res.x/u_res.y*0.5 + ptr.x*0.3, -0.25);
+      vec2 d = p - c;
+      float ang = atan(d.x, d.y);
+      float rays = fbm(vec2(ang*4.0, length(d)*1.4 - tm*2.0));
+      rays = pow(max(rays,0.0), 2.2) * smoothstep(1.4, 0.0, length(d));
+      vec3 gold = vec3(0.96,0.80,0.44);
+      vec3 violet = vec3(0.44,0.33,0.82);
+      vec3 col = vec3(0.024,0.018,0.055);
+      col += violet * m * 0.34;
+      col += gold * rays * 0.55;
+      col += gold * pow(max(1.0-length(uv-vec2(0.5,0.0)),0.0),3.0)*0.10;
+      col *= smoothstep(1.35,0.25,length(uv-0.5));
+      gl_FragColor = vec4(col, 1.0);
+    }`;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { canvas.hidden = true; return; }
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const uRes = gl.getUniformLocation(prog, 'u_res'),
+        uTime = gl.getUniformLocation(prog, 'u_time'),
+        uPtr = gl.getUniformLocation(prog, 'u_ptr');
+
+  const SCALE = 0.6;
+  const resize = () => { canvas.width = Math.round(innerWidth * SCALE); canvas.height = Math.round(innerHeight * SCALE); gl.viewport(0, 0, canvas.width, canvas.height); };
+  resize(); addEventListener('resize', resize);
+  let px = 0.5, py = 0.5, tpx = 0.5, tpy = 0.5;
+  addEventListener('pointermove', e => { tpx = e.clientX / innerWidth; tpy = e.clientY / innerHeight; }, { passive: true });
+  const t0 = performance.now();
+  (function loop(now) {
+    requestAnimationFrame(loop);
+    if (document.hidden) return;
+    px += (tpx - px) * .05; py += (tpy - py) * .05;
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, (now - t0) / 1000);
+    gl.uniform2f(uPtr, px, py);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  })(t0);
+}
+
+/* 3 ▸ 3D depth — section cards tilt toward the cursor */
+function startTilt() {
+  if (REDUCED || !matchMedia('(pointer: fine)').matches) return;
+  let tilted = null;
+  document.addEventListener('pointermove', e => {
+    const card = e.target.closest?.('.tilt');
+    if (tilted && tilted !== card) { tilted.style.transform = ''; tilted.classList.remove('tilting'); tilted = null; }
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const rx = ((e.clientY - r.top) / r.height - .5) * -3.2;
+    const ry = ((e.clientX - r.left) / r.width - .5) * 3.2;
+    card.style.transform = `perspective(1100px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+    card.style.setProperty('--gx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+    card.style.setProperty('--gy', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+    card.classList.add('tilting');
+    tilted = card;
+  }, { passive: true });
+}
+
+/* 5 ▸ Living typography — sections rise into being as you scroll */
+function startReveals() {
+  const els = $$('#hero, #rooms, #dailyWatch, #composer, #wallTools, .watch, .chain, footer');
+  els.forEach(e => e.setAttribute('data-reveal', ''));
+  if (!('IntersectionObserver' in window) || REDUCED) { els.forEach(e => e.classList.add('shown')); return; }
+  const io = new IntersectionObserver((ents) => {
+    for (const en of ents) if (en.isIntersecting) { en.target.classList.add('shown'); io.unobserve(en.target); }
+  }, { threshold: .08, rootMargin: '0px 0px -8% 0px' });
+  els.forEach(e => io.observe(e));
+}
+
+/* 11 ▸ Watch Kept — a full-screen seal when the day's three are lifted */
+function celebrateKept() {
+  const ov = $('#keptOverlay');
+  ov.hidden = false;
+  requestAnimationFrame(() => ov.classList.add('show'));
+  if ($('#soundBtn').classList.contains('on')) ambience.chord();
+  const cx = innerWidth / 2, cy = innerHeight * .42;
+  for (let i = 0; i < 5; i++) setTimeout(() => burst(cx + (Math.random() * 120 - 60), cy), i * 160);
+}
+function closeKept() { const ov = $('#keptOverlay'); ov.classList.remove('show'); setTimeout(() => { ov.hidden = true; }, 600); }
+
+/* a shareable seal image — TikTok / IG story fuel */
+function shareSeal() {
+  const W = 1080, H = 1920;
+  const c = el('canvas', { width: W, height: H });
+  const x = c.getContext('2d');
+  const bg = x.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0b0820'); bg.addColorStop(.5, '#120c2e'); bg.addColorStop(1, '#06040f');
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 140; i++) { x.globalAlpha = Math.random() * .6 + .1; x.fillStyle = '#fff6e3'; x.beginPath(); x.arc(Math.random() * W, Math.random() * H, Math.random() * 2, 0, 7); x.fill(); }
+  x.globalAlpha = 1;
+  const gx = x.createRadialGradient(W / 2, 760, 0, W / 2, 760, 360);
+  gx.addColorStop(0, 'rgba(243,201,105,.5)'); gx.addColorStop(1, 'rgba(243,201,105,0)');
+  x.fillStyle = gx; x.beginPath(); x.arc(W / 2, 760, 360, 0, 7); x.fill();
+  x.strokeStyle = '#f3c969'; x.lineWidth = 10; x.beginPath(); x.arc(W / 2, 760, 230, 0, 7); x.stroke();
+  x.lineWidth = 22; x.lineCap = 'round'; x.strokeStyle = '#ffe9b8';
+  x.beginPath(); x.moveTo(W / 2 - 70, 760); x.lineTo(W / 2 - 12, 822); x.lineTo(W / 2 + 86, 700); x.stroke();
+  x.textAlign = 'center'; x.fillStyle = '#f3c969'; x.font = '600 34px Cinzel, serif';
+  x.fillText('TODAY’S WATCH', W / 2, 1140);
+  x.fillStyle = '#ffe9b8'; x.font = '900 130px Cinzel, serif';
+  x.fillText('WATCH KEPT', W / 2, 1280);
+  x.fillStyle = '#cfc2ff'; x.font = 'italic 40px "Cormorant Garamond", serif';
+  x.fillText('I carried three souls to the throne today.', W / 2, 1380);
+  x.fillStyle = '#9d93c0'; x.font = '500 32px Outfit, sans-serif';
+  x.fillText(new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), W / 2, 1460);
+  x.fillStyle = '#f3c969'; x.font = '700 38px Cinzel, serif';
+  x.fillText('THE PRAYER REALM', W / 2, 1760);
+  x.fillStyle = '#6a6190'; x.font = '500 30px Outfit, sans-serif';
+  x.fillText('a sanctuary by KingdomCovers', W / 2, 1812);
+
+  c.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'watch-kept.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Watch Kept', text: 'I kept my watch in The Prayer Realm today.' }); return; } catch { /* fall through to download */ }
+    }
+    const a = el('a', { href: URL.createObjectURL(blob), download: 'watch-kept.png' });
+    document.body.append(a); a.click(); a.remove();
+    toast('Seal saved — share it on your story.', 'gold');
+  }, 'image/png');
 }
 
 function startVerses() {
@@ -1665,18 +1857,27 @@ function switchRoom(room) {
   $$('.room-tab').forEach(tb => tb.classList.toggle('active', tb.dataset.room === room));
   document.body.dataset.room = room;
   $$('.room').forEach(r => r.classList.toggle('active', r.id === room));
+  $$('#' + room + ' [data-reveal]').forEach(e => e.classList.add('shown'));
   if (room === 'map') Watch.start();
 }
 
 async function boot() {
-  startSky(); startHalo(); startVerses();
+  startGL(); startSky(); startHalo(); startVerses(); startTilt(); startReveals();
 
+  /* cinematic entry — clouds part, light breaks, fly through the veil */
   $('#enterBtn').addEventListener('click', () => {
     const wantSound = $('#veilSound').checked;
     setSound(wantSound, true);
-    $('#veil').classList.add('open');
-    setTimeout(() => $('#veil').remove(), 1600);
+    if (wantSound) ambience.chord();
+    const veil = $('#veil');
+    veil.classList.add('parting');
+    setTimeout(() => veil.classList.add('open'), 700);
+    setTimeout(() => veil.remove(), 2300);
   });
+
+  /* watch kept seal */
+  $('#keptClose').addEventListener('click', closeKept);
+  $('#keptShare').addEventListener('click', shareSeal);
 
   const soundPref = localStorage.getItem('realm.sound');
   if (soundPref === '0') $('#veilSound').checked = false;

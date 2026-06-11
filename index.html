@@ -13,7 +13,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/realm.css?v=5">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/realm.css?v=6">
 </head>
 <body data-room="altar">
 
@@ -48,6 +49,7 @@
   </svg>
 
   <!-- ✦ Atmosphere layers -->
+  <canvas id="glCanvas" aria-hidden="true"></canvas>
   <canvas id="skyStars" aria-hidden="true"></canvas>
   <canvas id="skyEmbers" aria-hidden="true"></canvas>
   <div class="aurora a1" aria-hidden="true"></div>
@@ -56,22 +58,41 @@
   <div class="rays" aria-hidden="true"></div>
   <div id="cursorHalo" aria-hidden="true"></div>
 
-  <!-- ✦ Entry veil -->
+  <!-- ✦ Entry veil — cinematic -->
   <div id="veil">
+    <div class="veil-clouds" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="veil-godlight" aria-hidden="true"></div>
+    <div class="veil-flash" aria-hidden="true"></div>
     <div class="veil-inner">
       <div class="portal">
         <div class="portal-ring"></div>
         <div class="portal-ring r2"></div>
+        <div class="portal-ring r3"></div>
         <div class="portal-cross"><svg class="icon xl"><use href="#i-cross"/></svg></div>
       </div>
       <p class="veil-eyebrow">KINGDOMCOVERS PRESENTS</p>
-      <h1 class="veil-title">THE PRAYER REALM</h1>
+      <h1 class="veil-title foil">THE PRAYER REALM</h1>
       <p class="veil-verse">“Come boldly to the throne of grace.” — Hebrews 4:16</p>
       <label class="veil-sound">
         <input type="checkbox" id="veilSound" checked>
         <span>Enter with heavenly ambience</span>
       </label>
       <button id="enterBtn" class="gold-btn big">Enter the Realm</button>
+    </div>
+  </div>
+
+  <!-- ✦ Watch Kept — full-screen seal -->
+  <div id="keptOverlay" hidden>
+    <div class="kept-burst" aria-hidden="true"></div>
+    <div class="kept-card">
+      <div class="kept-seal"><svg class="icon"><use href="#i-check"/></svg></div>
+      <p class="kept-eyebrow">TODAY'S WATCH</p>
+      <h2 class="kept-title foil">WATCH KEPT</h2>
+      <p class="kept-sub">You carried three souls to the throne today.<br>“Well done, good and faithful one.”</p>
+      <div class="kept-actions">
+        <button id="keptShare" class="gold-btn"><svg class="icon"><use href="#i-spark"/></svg><span>Share my seal</span></button>
+        <button id="keptClose" class="ghost-btn">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -126,7 +147,7 @@
 
     <!-- ✦ THE ALTAR -->
     <section id="altar" class="room active">
-      <div id="dailyWatch" class="glass">
+      <div id="dailyWatch" class="glass tilt">
         <div class="dw-head">
           <span class="flame" aria-hidden="true"></span>
           <div class="dw-title">
@@ -141,7 +162,7 @@
         <div id="dwFoot" class="dw-foot"></div>
       </div>
 
-      <div id="composer" class="glass">
+      <div id="composer" class="glass tilt">
         <div class="composer-head">
           <span class="flame" aria-hidden="true"></span>
           Lay it at His feet
@@ -187,8 +208,8 @@
           <p>Every light is a soul keeping watch across the nation. Gold flames are prayers rising from real places.</p>
         </div>
         <div id="mapStage">
-          <canvas id="mapCanvas"></canvas>
           <div id="mapTip" hidden></div>
+          <button id="mapRecenter" class="map-ctrl" title="Recenter on the nation" hidden><svg class="icon sm"><use href="#i-globe"/></svg></button>
           <div id="mapLoading"><div class="empty-flame" aria-hidden="true"></div>charting the nation…</div>
         </div>
         <div class="watch-foot">
@@ -203,7 +224,7 @@
         <p class="watch-privacy">Your light is placed at city level only — never your exact location. You can dim it any time.</p>
       </div>
 
-      <div class="chain glass">
+      <div class="chain glass tilt">
         <div class="watch-head">
           <h2><svg class="icon"><use href="#i-flame"/></svg> The Unbroken Chain</h2>
           <p>An ancient practice reborn: believers covering every hour of the day, so prayer never sleeps over this community. Claim an hour — it becomes your daily appointment before the throne.</p>
@@ -249,8 +270,9 @@
 
   <div id="toasts" aria-live="polite"></div>
 
-  <script src="js/config.js?v=5"></script>
-  <script src="js/usa.js?v=5"></script>
-  <script type="module" src="js/app.js?v=5"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/config.js?v=6"></script>
+  <script src="js/usa.js?v=6"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
