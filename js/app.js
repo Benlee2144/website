@@ -98,6 +98,60 @@ const VERSES = [
   { t: '“The LORD is near to all who call on him, to all who call on him in truth.”', r: 'Psalm 145:18' },
 ];
 
+/* Daily manna — one verse and one charge per day of the month. */
+const MANNA = [
+  { v: 'Give us this day our daily bread.', r: 'Matthew 6:11', p: 'Pray for someone whose needs are heavier than yours today.' },
+  { v: 'The steadfast love of the LORD never ceases; his mercies never come to an end; they are new every morning.', r: 'Lamentations 3:22-23', p: 'Lift someone who needs a new morning.' },
+  { v: 'Pray for one another, that you may be healed.', r: 'James 5:16', p: 'Find a healing request on the altar and stand over it.' },
+  { v: 'And let us not grow weary of doing good, for in due season we will reap, if we do not give up.', r: 'Galatians 6:9', p: 'Encourage someone who has been waiting a long time.' },
+  { v: 'Be still, and know that I am God.', r: 'Psalm 46:10', p: 'Before you lift anyone — be still for thirty seconds.' },
+  { v: 'The light shines in the darkness, and the darkness has not overcome it.', r: 'John 1:5', p: 'Pray over the request with the fewest amens.' },
+  { v: 'Bear one another’s burdens, and so fulfill the law of Christ.', r: 'Galatians 6:2', p: 'Carry a stranger’s burden as if it were your own.' },
+  { v: 'Call to me and I will answer you, and will tell you great and hidden things that you have not known.', r: 'Jeremiah 33:3', p: 'Ask boldly today — for someone else.' },
+  { v: 'If two of you agree on earth about anything they ask, it will be done for them by my Father in heaven.', r: 'Matthew 18:19', p: 'Add your agreement to a prayer that moved you.' },
+  { v: 'Weeping may tarry for the night, but joy comes with the morning.', r: 'Psalm 30:5', p: 'Speak a word of hope over someone grieving.' },
+  { v: 'Cast your burden on the LORD, and he will sustain you.', r: 'Psalm 55:22', p: 'Place something on the altar you have been carrying alone.' },
+  { v: 'The prayer of a righteous person has great power as it is working.', r: 'James 5:16', p: 'Your amens are not small. Spend three of them today.' },
+  { v: 'Fear not, for I am with you; be not dismayed, for I am your God.', r: 'Isaiah 41:10', p: 'Lift someone praying for protection.' },
+  { v: 'Come to me, all who labor and are heavy laden, and I will give you rest.', r: 'Matthew 11:28', p: 'Pray rest over someone exhausted.' },
+  { v: 'And my God will supply every need of yours according to his riches in glory in Christ Jesus.', r: 'Philippians 4:19', p: 'Stand with someone asking for provision.' },
+  { v: 'Let your light shine before others.', r: 'Matthew 5:16', p: 'Shine your light on the Watch — then pray for the light nearest yours.' },
+  { v: 'For where two or three are gathered in my name, there am I among them.', r: 'Matthew 18:20', p: 'You are not praying alone today. Act like it.' },
+  { v: 'He heals the brokenhearted and binds up their wounds.', r: 'Psalm 147:3', p: 'Find the rawest prayer on the altar. Stay with it a while.' },
+  { v: 'Rejoice in hope, be patient in tribulation, be constant in prayer.', r: 'Romans 12:12', p: 'Keep your watch even if today is hard.' },
+  { v: 'The LORD bless you and keep you; the LORD make his face to shine upon you.', r: 'Numbers 6:24-25', p: 'Speak this blessing over three people by name.' },
+  { v: 'Ask, and it will be given to you; seek, and you will find; knock, and it will be opened to you.', r: 'Matthew 7:7', p: 'Knock on heaven’s door for a stranger.' },
+  { v: 'I sought the LORD, and he answered me and delivered me from all my fears.', r: 'Psalm 34:4', p: 'Pray courage over someone afraid.' },
+  { v: 'Let all that you do be done in love.', r: '1 Corinthians 16:14', p: 'Send a private word of encouragement to someone today.' },
+  { v: 'With God all things are possible.', r: 'Matthew 19:26', p: 'Find the most impossible request on the altar — pray for that one.' },
+  { v: 'He gives power to the faint, and to him who has no might he increases strength.', r: 'Isaiah 40:29', p: 'Lift someone running on empty.' },
+  { v: 'Your word is a lamp to my feet and a light to my path.', r: 'Psalm 119:105', p: 'Pray guidance over someone at a crossroads.' },
+  { v: 'Greater love has no one than this, that someone lay down his life for his friends.', r: 'John 15:13', p: 'Lay down ten minutes of your day for someone else’s battle.' },
+  { v: 'Peace I leave with you; my peace I give to you.', r: 'John 14:27', p: 'Pray peace over an anxious heart on the altar.' },
+  { v: 'Children are a heritage from the LORD.', r: 'Psalm 127:3', p: 'Lift every family request you can find today.' },
+  { v: 'Give thanks in all circumstances.', r: '1 Thessalonians 5:18', p: 'Visit the answered prayers — and thank Him for each one.' },
+  { v: 'And they devoted themselves to the apostles’ teaching and the fellowship, to the breaking of bread and the prayers.', r: 'Acts 2:42', p: 'Devotion is daily. You showed up — now keep the watch.' },
+];
+
+/* daily helpers */
+const dayInt = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const yesterdayInt = () => dayInt(new Date(Date.now() - 86400000));
+function hashStr(s) {
+  let h = 2166136261;
+  for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function seededShuffle(arr, seed) {
+  let s = seed >>> 0;
+  const rand = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 /* coarse timezone → coordinates, the no-permission fallback for the map */
 const TZ_COORDS = {
   'America/New_York': [40.7, -74], 'America/Chicago': [41.9, -87.6], 'America/Denver': [39.7, -105],
@@ -133,6 +187,8 @@ const state = {
   souls: [],                       // live presence
   geo: null,                       // {mode:'on'|'off', lat, lng}
   dm: { threads: [], openId: null, other: null, msgs: [], unsubMsgs: null },
+  fire: { streak: 0, lastDay: 0, best: 0, watchHourUtc: null },   // your daily flame
+  dailyIds: null,                  // today's three, frozen for the day
   loaded: false,
 };
 
@@ -140,6 +196,8 @@ let backend = null;
 
 try { state.geo = JSON.parse(localStorage.getItem('realm.geo')) || { mode: 'off' }; }
 catch { state.geo = { mode: 'off' }; }
+try { Object.assign(state.fire, JSON.parse(localStorage.getItem('realm.fire')) || {}); }
+catch { /* fresh fire */ }
 
 /* ═══════════════════════════════════════════════════════════════════
    BACKEND · DEMO (localStorage)
@@ -153,7 +211,7 @@ function makeLocalBackend() {
   const seed = {
     prayers: [
       { id: 'seed-1', uid: 'keeper', name: 'The Realm Keeper', photo: null, anonymous: false,
-        text: 'Welcome to the Prayer Realm, saint. Lay whatever you are carrying on this altar — and take a moment to lift up someone else while you are here. This is a demo prayer; yours will appear above it.',
+        text: 'Welcome to the Prayer Realm. Lay whatever you are carrying on this altar — and take a moment to lift up someone else while you are here. This is a demo prayer; yours will appear above it.',
         category: 'faith', createdAt: now - 86400000 * 2, prayedBy: ['a', 'b', 'c'], prayedCount: 3,
         reactions: { love: ['a'], dove: ['b'], cross: ['c'], fire: [] }, answered: false, flags: [],
         commentCount: 1, loc: { lat: 36.2, lng: -86.8 } },
@@ -190,12 +248,12 @@ function makeLocalBackend() {
 
   /* a handful of souls keeping watch, so the map breathes in demo */
   const demoSouls = [
-    { uid: 'w1', name: 'A Saint in Nashville', photo: null, lat: 36.2, lng: -86.8 },
-    { uid: 'w2', name: 'A Saint in Dallas', photo: null, lat: 32.8, lng: -96.8 },
-    { uid: 'w3', name: 'A Saint in Los Angeles', photo: null, lat: 34.1, lng: -118.2 },
-    { uid: 'w4', name: 'A Saint in New York', photo: null, lat: 40.7, lng: -74 },
-    { uid: 'w5', name: 'A Saint in Anchorage', photo: null, lat: 61.2, lng: -149.9 },
-    { uid: 'w6', name: 'A Saint in London', photo: null, lat: 51.5, lng: -.1 },
+    { uid: 'w1', name: 'A light in Nashville', photo: null, lat: 36.2, lng: -86.8 },
+    { uid: 'w2', name: 'A light in Dallas', photo: null, lat: 32.8, lng: -96.8 },
+    { uid: 'w3', name: 'A light in Los Angeles', photo: null, lat: 34.1, lng: -118.2 },
+    { uid: 'w4', name: 'A light in New York', photo: null, lat: 40.7, lng: -74 },
+    { uid: 'w5', name: 'A light in Anchorage', photo: null, lat: 61.2, lng: -149.9 },
+    { uid: 'w6', name: 'A light in London', photo: null, lat: 51.5, lng: -.1 },
   ].map(s => ({ ...s, lastSeen: Date.now() }));
   let ownPresence = null;
   const emitSouls = () => soulCbs.forEach(cb =>
@@ -206,7 +264,7 @@ function makeLocalBackend() {
 
     onUser(cb) { userCbs.push(cb); cb(user); },
     async signIn() {
-      user = { uid: 'demo-' + Math.random().toString(36).slice(2, 8), name: 'Guest Saint',
+      user = { uid: 'demo-' + Math.random().toString(36).slice(2, 8), name: 'Guest',
                email: 'guest@demo', photo: null, admin: true };
       try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
       emitUser();
@@ -278,10 +336,12 @@ function makeLocalBackend() {
 
     /* presence */
     onSouls(cb) { soulCbs.push(cb); emitSouls(); },
-    async setPresence({ lat, lng }) {
+    async setPresence({ lat, lng, streak, lastDay, best, watchHourUtc }) {
       if (!user) return;
       ownPresence = { uid: user.uid, name: user.name, photo: user.photo,
-                      lat: lat ?? null, lng: lng ?? null, lastSeen: Date.now() };
+                      lat: lat ?? null, lng: lng ?? null, lastSeen: Date.now(),
+                      streak: streak || 0, lastDay: lastDay || 0, best: best || 0,
+                      watchHourUtc: watchHourUtc ?? null };
       emitSouls();
     },
 
@@ -343,7 +403,7 @@ async function makeFirebaseBackend() {
   const normalize = d => {
     const x = d.data();
     return {
-      id: d.id, uid: x.uid, name: x.name || 'A Saint', photo: x.photo || null,
+      id: d.id, uid: x.uid, name: x.name || 'A Believer', photo: x.photo || null,
       anonymous: !!x.anonymous, text: x.text || '', category: x.category || 'other',
       createdAt: tsToMs(x.createdAt), prayedBy: x.prayedBy || [],
       prayedCount: x.prayedCount || 0,
@@ -358,7 +418,7 @@ async function makeFirebaseBackend() {
 
     onUser(cb) {
       A.onAuthStateChanged(auth, u => {
-        cb(u ? { uid: u.uid, name: u.displayName || 'A Saint', email: u.email,
+        cb(u ? { uid: u.uid, name: u.displayName || 'A Believer', email: u.email,
                  photo: u.photoURL, admin: isAdminEmail(u.email) } : null);
       });
     },
@@ -386,7 +446,7 @@ async function makeFirebaseBackend() {
     async addPrayer({ text, category, anonymous, loc }) {
       const u = auth.currentUser;
       await F.addDoc(F.collection(db, 'prayers'), {
-        uid: u.uid, name: u.displayName || 'A Saint', photo: u.photoURL || null,
+        uid: u.uid, name: u.displayName || 'A Believer', photo: u.photoURL || null,
         anonymous, text, category, createdAt: F.serverTimestamp(),
         prayedBy: [], prayedCount: 0, reactions: EMPTY_REACTIONS(),
         answered: false, flags: [], commentCount: 0,
@@ -408,14 +468,14 @@ async function makeFirebaseBackend() {
       const q = F.query(F.collection(db, 'prayers', id, 'comments'), F.orderBy('createdAt', 'asc'), F.limit(100));
       return F.onSnapshot(q, snap => cb(snap.docs.map(d => {
         const x = d.data();
-        return { id: d.id, uid: x.uid, name: x.name || 'A Saint', photo: x.photo || null,
+        return { id: d.id, uid: x.uid, name: x.name || 'A Believer', photo: x.photo || null,
                  anonymous: !!x.anonymous, text: x.text || '', createdAt: tsToMs(x.createdAt) };
       })), err => console.error(err));
     },
     async addComment(id, { text, anonymous }) {
       const u = auth.currentUser;
       await F.addDoc(F.collection(db, 'prayers', id, 'comments'), {
-        uid: u.uid, name: u.displayName || 'A Saint', photo: u.photoURL || null,
+        uid: u.uid, name: u.displayName || 'A Believer', photo: u.photoURL || null,
         anonymous, text, createdAt: F.serverTimestamp(),
       });
       await F.updateDoc(F.doc(db, 'prayers', id), { commentCount: F.increment(1) }).catch(() => {});
@@ -451,17 +511,21 @@ async function makeFirebaseBackend() {
       const q = F.query(F.collection(db, 'presence'), F.orderBy('lastSeen', 'desc'), F.limit(300));
       F.onSnapshot(q, snap => cb(snap.docs.map(d => {
         const x = d.data();
-        return { uid: d.id, name: x.name || 'A Saint', photo: x.photo || null,
+        return { uid: d.id, name: x.name || 'A Believer', photo: x.photo || null,
                  lat: typeof x.lat === 'number' ? x.lat : null,
                  lng: typeof x.lng === 'number' ? x.lng : null,
-                 lastSeen: tsToMs(x.lastSeen) };
+                 lastSeen: tsToMs(x.lastSeen),
+                 streak: x.streak || 0,
+                 watchHourUtc: typeof x.watchHourUtc === 'number' ? x.watchHourUtc : null };
       })), err => console.error(err));
     },
-    async setPresence({ lat, lng }) {
+    async setPresence({ lat, lng, streak, lastDay, best, watchHourUtc }) {
       const u = auth.currentUser; if (!u) return;
       await F.setDoc(F.doc(db, 'presence', u.uid), {
-        uid: u.uid, name: u.displayName || 'A Saint', photo: u.photoURL || null,
+        uid: u.uid, name: u.displayName || 'A Believer', photo: u.photoURL || null,
         lat: lat ?? null, lng: lng ?? null, lastSeen: F.serverTimestamp(),
+        streak: streak || 0, lastDay: lastDay || 0, best: best || 0,
+        watchHourUtc: watchHourUtc ?? null,
       }).catch(() => {});
     },
 
@@ -487,7 +551,7 @@ async function makeFirebaseBackend() {
       if (!existing || !existing.exists()) {
         await F.setDoc(ref, {
           users,
-          names: { [u.uid]: u.displayName || 'A Saint', [other.uid]: other.name || 'A Saint' },
+          names: { [u.uid]: u.displayName || 'A Believer', [other.uid]: other.name || 'A Believer' },
           photos: { [u.uid]: u.photoURL || null, [other.uid]: other.photo || null },
           lastText: '', lastFrom: '', updatedAt: F.serverTimestamp(), readAt: {},
         });
@@ -535,7 +599,7 @@ function avatarNode(photo, anonymous, big = true) {
   return n;
 }
 
-function displayName(p) { return p.anonymous ? 'Anonymous Saint' : p.name; }
+function displayName(p) { return p.anonymous ? 'Anonymous' : p.name; }
 
 function buildFilterChips() {
   const wrap = $('#filterChips');
@@ -606,6 +670,7 @@ function renderPrayers() {
     if (input) { input.value = draft.value; input.focus(); try { input.setSelectionRange(draft.s, draft.e); } catch {} }
   }
   updateStats();
+  renderDaily();
 }
 
 function prayerCard(p, i) {
@@ -639,7 +704,7 @@ function prayerCard(p, i) {
       const r = e.currentTarget.getBoundingClientRect();
       burst(r.left + r.width / 2, r.top);
       e.currentTarget.classList.add('prayed');
-      try { await backend.prayFor(p.id); } catch (err) { console.error(err); }
+      try { await backend.prayFor(p.id); markIntercession(); } catch (err) { console.error(err); }
     },
   }, icon('hands'), prayed ? 'Amen' : 'I prayed',
      el('span', { class: 'cnt' }, p.prayedCount ? String(p.prayedCount) : ''));
@@ -732,7 +797,7 @@ function commentsPanel(p) {
     avatarNode(c.photo, c.anonymous, false),
     el('div', { class: 'comment-body' },
       el('div', { class: 'comment-name' },
-        c.anonymous ? 'Anonymous Saint' : c.name,
+        c.anonymous ? 'Anonymous' : c.name,
         el('time', {}, timeAgo(c.createdAt))),
       el('div', { class: 'comment-text' }, c.text),
     ),
@@ -751,7 +816,7 @@ function commentsPanel(p) {
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
-      try { await backend.addComment(p.id, { text, anonymous: $('#anonToggle').checked }); }
+      try { await backend.addComment(p.id, { text, anonymous: $('#anonToggle').checked }); markIntercession(); }
       catch (err) { console.error(err); toast('Could not send — try again.', 'rose'); }
     };
     form = el('div', { class: 'comment-form' }, input,
@@ -912,7 +977,8 @@ const Watch = (() => {
       if (!pt) { beyond++; continue; }
       out.push({ x: pt[0], y: pt[1], type: s.uid === me ? 'me' : 'soul', id: s.uid,
                  label: s.uid === me ? 'You — keeping watch' : s.name,
-                 text: s.uid === me ? '' : 'keeping watch in the realm', phase: pt[0] % 7 });
+                 text: s.uid === me ? '' : (s.streak > 1 ? `keeping watch — day ${s.streak} flame` : 'keeping watch in the realm'),
+                 phase: pt[0] % 7 });
     }
     beacons = out;
     const note = $('#beyondNote');
@@ -1058,7 +1124,7 @@ async function acquireGeo() {
 function beatPresence() {
   if (!state.user || !backend) return;
   const loc = state.geo.mode === 'on' ? { lat: state.geo.lat, lng: state.geo.lng } : { lat: null, lng: null };
-  backend.setPresence(loc);
+  backend.setPresence({ ...loc, ...state.fire });
 }
 
 function startPresence() {
@@ -1074,10 +1140,211 @@ function updateSouls() {
   const n = Math.max(1, live.length + (state.user && !live.some(s => s.uid === state.user.uid) ? 1 : 0));
   $('#soulsCount').textContent = String(n);
   Watch.refresh();
+  renderChain();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   WORDS — private messages between saints
+   YOUR FLAME — pray for someone every day and it grows; rest, and
+   it returns to embers. The realm rewards faithfulness, not noise.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function saveFire() { try { localStorage.setItem('realm.fire', JSON.stringify(state.fire)); } catch {} }
+
+function fireTier(streak) {
+  if (streak >= 30) return { cls: 't4', name: 'Pillar of Fire' };
+  if (streak >= 7)  return { cls: 't3', name: 'Blaze' };
+  if (streak >= 3)  return { cls: 't2', name: 'Flame' };
+  return { cls: 't1', name: 'Ember' };
+}
+
+function renderFlame() {
+  const pill = $('#flamePill');
+  const f = state.fire;
+  /* a flame that wasn't tended yesterday has gone out */
+  if (f.streak && f.lastDay !== dayInt() && f.lastDay !== yesterdayInt()) {
+    f.streak = 0; saveFire();
+  }
+  if (!state.user || !f.streak) { pill.hidden = true; return; }
+  const tier = fireTier(f.streak);
+  pill.hidden = false;
+  pill.className = tier.cls;
+  pill.title = `${tier.name} — day ${f.streak} of your watch` + (f.best > f.streak ? ` (best: ${f.best})` : '');
+  $('#flameCount').textContent = String(f.streak);
+}
+
+/* called after any true act of intercession (amen, word, encouragement) */
+function markIntercession() {
+  if (!state.user) return;
+  const today = dayInt();
+  const f = state.fire;
+  if (f.lastDay === today) return;
+  f.streak = (f.lastDay === yesterdayInt()) ? (f.streak || 0) + 1 : 1;
+  f.lastDay = today;
+  f.best = Math.max(f.best || 0, f.streak);
+  saveFire(); renderFlame(); beatPresence();
+  const tier = fireTier(f.streak);
+  toast(`Day ${f.streak} — your ${tier.name.toLowerCase()} burns on.`, 'gold');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TODAY'S WATCH — three souls entrusted to you each day, chosen
+   where need is greatest, plus the day's manna.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function pickDaily() {
+  if (!state.user || !state.loaded) return [];
+  const key = `realm.daily.${state.user.uid}.${dayInt()}`;
+  if (!state.dailyIds) {
+    try { state.dailyIds = JSON.parse(localStorage.getItem(key)); } catch {}
+  }
+  if (state.dailyIds) {
+    const found = state.dailyIds.map(id => state.prayers.find(p => p.id === id)).filter(Boolean);
+    if (found.length) return found;
+  }
+  const me = state.user.uid;
+  const cands = state.prayers.filter(p => p.uid !== me && !p.answered);
+  /* the least-lifted first — the realm sends you where need is greatest */
+  cands.sort((a, b) => (a.prayedCount - b.prayedCount) || (b.createdAt - a.createdAt));
+  const picks = seededShuffle(cands.slice(0, 12), hashStr(me + dayInt())).slice(0, 3);
+  if (picks.length) {
+    state.dailyIds = picks.map(p => p.id);
+    try { localStorage.setItem(key, JSON.stringify(state.dailyIds)); } catch {}
+  }
+  return picks;
+}
+
+function renderDaily() {
+  const box = $('#dailyWatch');
+  if (!box) return;
+  const today = new Date();
+  $('#dwDate').textContent = today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const m = MANNA[(today.getDate() - 1) % MANNA.length];
+  $('#dwManna').replaceChildren(`“${m.v}” `, el('b', {}, `— ${m.r}`));
+  $('#dwPrompt').textContent = m.p;
+
+  const list = $('#dwList'), foot = $('#dwFoot'), badge = $('#dwBadge');
+  if (!state.user) {
+    list.replaceChildren(el('div', { class: 'comment-hint' },
+      'Enter with Google and the realm will entrust three people to you each day.'));
+    foot.textContent = '';
+    badge.hidden = true;
+    return;
+  }
+  const picks = pickDaily();
+  if (!picks.length) {
+    list.replaceChildren(el('div', { class: 'comment-hint' },
+      'The altar is quiet — place a prayer, or return when others have laid theirs down.'));
+    foot.textContent = '';
+    badge.hidden = true;
+    return;
+  }
+  const me = state.user.uid;
+  let done = 0;
+  list.replaceChildren(...picks.map(p => {
+    const lifted = p.prayedBy.includes(me);
+    if (lifted) done++;
+    const cat = CATS[p.category] || CATS.other;
+    return el('div', { class: 'dw-item' + (lifted ? ' done' : '') },
+      el('span', { class: 'dw-cat' }, icon(cat.icon)),
+      el('div', { class: 'dw-body' },
+        el('b', {}, displayName(p)),
+        el('span', {}, p.text.length > 80 ? p.text.slice(0, 80) + '…' : p.text)),
+      el('button', {
+        class: 'amen-btn' + (lifted ? ' prayed' : ''),
+        onclick: async e => {
+          if (lifted) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          burst(r.left + r.width / 2, r.top);
+          try { await backend.prayFor(p.id); markIntercession(); } catch (err) { console.error(err); }
+        },
+      }, icon('hands'), lifted ? 'Amen' : 'Lift'),
+    );
+  }));
+  foot.textContent = `${done} of ${picks.length} lifted today`;
+  const kept = done === picks.length;
+  badge.hidden = !kept;
+  const keptKey = `realm.kept.${dayInt()}`;
+  if (kept && !localStorage.getItem(keptKey)) {
+    try { localStorage.setItem(keptKey, '1'); } catch {}
+    const r = badge.getBoundingClientRect?.() || { left: innerWidth / 2, width: 0, top: innerHeight / 3 };
+    burst(r.left + r.width / 2, r.top || innerHeight / 3);
+    toast('Watch kept. Well done, good and faithful one.', 'gold');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE UNBROKEN CHAIN — believers covering every hour of the day,
+   in the spirit of the old Moravian watch: prayer that never sleeps.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function hourLabel(utcHour) {
+  const d = new Date();
+  d.setUTCHours(utcHour, 0, 0, 0);
+  return d.toLocaleTimeString([], { hour: 'numeric' });
+}
+
+function renderChain() {
+  const ring = $('#chainRing');
+  if (!ring) return;
+  const counts = Array(24).fill(0);
+  const counted = new Set();
+  for (const s of state.souls) {
+    if (s.watchHourUtc == null || counted.has(s.uid)) continue;
+    counted.add(s.uid);
+    counts[s.watchHourUtc]++;
+  }
+  const mine = state.user ? state.fire.watchHourUtc : null;
+  if (state.user && mine != null && !counted.has(state.user.uid)) counts[mine]++;
+
+  const covered = counts.filter(c => c > 0).length;
+  const SZ = 240, C = SZ / 2, R = 92, WID = 17;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${SZ} ${SZ}`);
+  svg.setAttribute('class', 'chain-svg');
+  for (let h = 0; h < 24; h++) {
+    const a0 = (h / 24) * Math.PI * 2 - Math.PI / 2 + .02;
+    const a1 = ((h + 1) / 24) * Math.PI * 2 - Math.PI / 2 - .02;
+    const x0 = C + R * Math.cos(a0), y0 = C + R * Math.sin(a0);
+    const x1 = C + R * Math.cos(a1), y1 = C + R * Math.sin(a1);
+    const seg = document.createElementNS(SVG_NS, 'path');
+    seg.setAttribute('d', `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}`);
+    seg.setAttribute('fill', 'none');
+    seg.setAttribute('stroke-width', WID);
+    seg.setAttribute('stroke-linecap', 'butt');
+    const n = counts[h];
+    seg.setAttribute('stroke', n
+      ? `rgba(243, 201, 105, ${Math.min(.95, .45 + n * .18)})`
+      : 'rgba(124, 92, 255, .13)');
+    if (mine === h) seg.setAttribute('class', 'chain-mine');
+    const tip = document.createElementNS(SVG_NS, 'title');
+    tip.textContent = `${hourLabel(h)} — ${n ? n + ' keeping watch' : 'unguarded'}`;
+    seg.append(tip);
+    svg.append(seg);
+  }
+  const mid = document.createElementNS(SVG_NS, 'text');
+  mid.setAttribute('x', C); mid.setAttribute('y', C - 6);
+  mid.setAttribute('class', 'chain-num');
+  mid.setAttribute('text-anchor', 'middle');
+  mid.textContent = `${covered}/24`;
+  const sub = document.createElementNS(SVG_NS, 'text');
+  sub.setAttribute('x', C); sub.setAttribute('y', C + 16);
+  sub.setAttribute('class', 'chain-sub');
+  sub.setAttribute('text-anchor', 'middle');
+  sub.textContent = 'hours guarded';
+  svg.append(mid, sub);
+  ring.replaceChildren(svg);
+
+  $('#chainStat').textContent = covered === 24
+    ? 'Every hour is guarded. Over this community, prayer never sleeps.'
+    : `The chain holds ${covered} of 24 hours. Claim yours, and prayer never sleeps over this community.`;
+  $('#claimLabel').textContent = mine != null
+    ? `Your watch: ${hourLabel(mine)} — change it`
+    : 'Claim my watch hour';
+  $('#claimBtn').classList.toggle('lit', mine != null);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WORDS — private messages between believers
    ═══════════════════════════════════════════════════════════════════ */
 
 let threadsUnsub = null;
@@ -1085,7 +1352,7 @@ let threadsUnsub = null;
 function otherOf(t) {
   const me = state.user?.uid;
   const uid = (t.users || []).find(x => x !== me) || '';
-  return { uid, name: t.names?.[uid] || 'A Saint', photo: t.photos?.[uid] || null };
+  return { uid, name: t.names?.[uid] || 'A Believer', photo: t.photos?.[uid] || null };
 }
 
 function threadUnread(t) {
@@ -1142,7 +1409,7 @@ function closePanel() {
 function showThreadList() {
   closeThreadUI();
   $('#dmTitle').textContent = 'Words';
-  $('#dmSub').textContent = 'private encouragement between saints';
+  $('#dmSub').textContent = 'private encouragement between believers';
   $('#dmBack').hidden = true;
   $('#dmThreads').style.display = '';
   $('#dmConvo').hidden = true;
@@ -1216,10 +1483,12 @@ function renderAuth() {
   buildFilterChips();
   renderPrayers();
   geoLabel();
+  renderFlame();
+  renderChain();
 }
 
 function needSignIn() {
-  toast('Enter with Google first, saint.', 'gold');
+  toast('Enter with Google first.', 'gold');
   $('#authBtn').animate(
     [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
     { duration: 500, easing: 'ease-out' });
@@ -1455,7 +1724,7 @@ async function boot() {
     const ta = $('#prayerText');
     const text = ta.value.trim();
     if (!state.user) return needSignIn();
-    if (text.length < 3) return toast('Pour out a little more, saint — the altar is listening.', 'gold');
+    if (text.length < 3) return toast('Pour out a little more — the altar is listening.', 'gold');
     const btn = $('#submitPrayer');
     btn.disabled = true;
     try {
@@ -1468,7 +1737,8 @@ async function boot() {
       ta.value = '';
       const r = btn.getBoundingClientRect();
       burst(r.left + r.width / 2, r.top);
-      toast('Placed on the altar. The saints are with you.', 'gold');
+      toast('Placed on the altar. The realm is praying with you.', 'gold');
+      markIntercession();
     } catch (e) {
       console.error(e);
       toast('The altar could not receive it — try again.', 'rose');
@@ -1486,7 +1756,18 @@ async function boot() {
 
   /* live data */
   backend.onPrayers(list => { state.prayers = list; state.loaded = true; renderPrayers(); Watch.refresh(); });
-  backend.onSouls(list => { state.souls = list; updateSouls(); });
+  backend.onSouls(list => {
+    state.souls = list;
+    const own = state.user && list.find(s => s.uid === state.user.uid);
+    if (own && (own.streak || 0) > (state.fire.streak || 0)) {
+      state.fire.streak = own.streak;
+      if (own.watchHourUtc != null && state.fire.watchHourUtc == null) state.fire.watchHourUtc = own.watchHourUtc;
+      saveFire(); renderFlame();
+    } else if (own && own.watchHourUtc != null && state.fire.watchHourUtc == null) {
+      state.fire.watchHourUtc = own.watchHourUtc; saveFire();
+    }
+    updateSouls();
+  });
   setInterval(updateSouls, 30000);
 
   /* the watch — my light */
@@ -1506,6 +1787,23 @@ async function boot() {
     toast('Your light now shines on the watch.', 'gold');
   });
 
+  /* the unbroken chain — claim an hour */
+  const hourSel = $('#hourSel');
+  const localNow = new Date().getHours();
+  for (let h = 0; h < 24; h++) {
+    /* options listed in local-day order, values stored as UTC hours */
+    const local = (localNow + h) % 24;
+    const d = new Date(); d.setHours(local, 0, 0, 0);
+    hourSel.append(el('option', { value: String(d.getUTCHours()) },
+      d.toLocaleTimeString([], { hour: 'numeric' }) + (h === 0 ? ' (now)' : '')));
+  }
+  $('#claimBtn').addEventListener('click', () => {
+    if (!state.user) return needSignIn();
+    state.fire.watchHourUtc = parseInt(hourSel.value, 10);
+    saveFire(); beatPresence(); renderChain();
+    toast(`Your watch is set for ${hourLabel(state.fire.watchHourUtc)}. The realm counts on you.`, 'gold');
+  });
+
   /* words */
   $('#dmBtn').addEventListener('click', () => { $('#dmPanel').hidden ? openPanel() : closePanel(); });
   $('#dmClose').addEventListener('click', closePanel);
@@ -1515,7 +1813,7 @@ async function boot() {
     const text = input.value.trim();
     if (!text || !state.dm.openId) return;
     input.value = '';
-    try { await backend.sendMessage(state.dm.openId, text); }
+    try { await backend.sendMessage(state.dm.openId, text); markIntercession(); }
     catch (e) { console.error(e); toast('Could not send — try again.', 'rose'); }
   };
   $('#dmSend').addEventListener('click', sendWord);

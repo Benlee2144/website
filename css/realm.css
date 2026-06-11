@@ -834,6 +834,111 @@ main { position: relative; z-index: 10; max-width: 1060px; margin: 0 auto; paddi
 }
 #dmInput { flex: 1; border-radius: 999px; padding: 11px 16px; font-size: 14px; }
 
+
+/* ═══ YOUR FLAME — the daily streak ══════════════════════════════ */
+
+#flamePill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700;
+  border-radius: 999px; padding: 7px 13px;
+  border: 1px solid rgba(243, 201, 105, .35);
+  background: rgba(243, 201, 105, .08);
+  color: var(--gold);
+}
+#flamePill[hidden] { display: none; }
+#flamePill.t2 { color: var(--gold-bright); box-shadow: 0 0 14px rgba(243, 201, 105, .25); }
+#flamePill.t3 {
+  color: #2a1d04; background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border-color: rgba(255, 240, 200, .7);
+  box-shadow: 0 0 20px rgba(243, 201, 105, .5);
+}
+#flamePill.t4 {
+  color: #2a1d04; background: linear-gradient(180deg, #ffffff, var(--gold-bright) 60%, var(--gold));
+  border-color: #fff;
+  box-shadow: 0 0 28px rgba(255, 240, 200, .8);
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+/* ═══ TODAY'S WATCH — the daily three ════════════════════════════ */
+
+#dailyWatch { padding: clamp(18px, 3.4vw, 28px); margin-bottom: 22px; }
+#dailyWatch::before {
+  background: radial-gradient(420px 140px at 50% 0%, rgba(243, 201, 105, .16), transparent 70%);
+}
+.dw-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dw-title { display: flex; flex-direction: column; line-height: 1.2; flex: 1; min-width: 0; }
+.dw-title b {
+  font-family: var(--font-display); font-size: clamp(16px, 2.4vw, 20px);
+  letter-spacing: .12em; color: var(--gold-bright);
+}
+.dw-title span { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-faint); }
+.dw-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-display); font-size: 10px; letter-spacing: .22em; font-weight: 700;
+  color: #2a1d04; background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  padding: 6px 13px; border-radius: 999px;
+  box-shadow: 0 0 18px rgba(243, 201, 105, .55);
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.dw-manna {
+  font-family: var(--font-verse); font-style: italic;
+  font-size: clamp(16px, 2.6vw, 20px); line-height: 1.55; color: var(--ink);
+  margin: 14px 0 4px;
+}
+.dw-manna b { color: var(--gold); font-weight: 600; }
+.dw-prompt { font-size: 13px; color: var(--ink-dim); margin-bottom: 14px; }
+#dwList { display: grid; gap: 9px; }
+.dw-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px; border-radius: 14px;
+  background: rgba(5, 3, 14, .45);
+  border: 1px solid rgba(243, 201, 105, .14);
+  transition: all .25s var(--ease-realm);
+}
+.dw-item:hover { border-color: rgba(243, 201, 105, .35); }
+.dw-item.done { opacity: .65; }
+.dw-cat {
+  display: grid; place-items: center; flex: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  color: var(--violet-soft);
+  background: rgba(124, 92, 255, .12);
+  border: 1px solid rgba(124, 92, 255, .3);
+}
+.dw-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dw-body b { font-size: 13.5px; color: var(--ink); }
+.dw-body span {
+  font-size: 12.5px; color: var(--ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dw-item .amen-btn { flex: none; padding: 8px 14px; font-size: 12px; }
+.dw-foot { margin-top: 12px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+
+/* ═══ THE UNBROKEN CHAIN ═════════════════════════════════════════ */
+
+.chain { margin-top: 24px; padding: clamp(18px, 3.4vw, 30px); }
+#chainRing { display: flex; justify-content: center; margin: 6px 0 14px; }
+.chain-svg { width: min(260px, 70vw); height: auto; filter: drop-shadow(0 0 18px rgba(243, 201, 105, .15)); }
+.chain-mine {
+  filter: drop-shadow(0 0 6px rgba(255, 240, 200, .9));
+}
+.chain-num {
+  font-family: var(--font-display); font-weight: 700; font-size: 34px;
+  fill: var(--gold-bright);
+}
+.chain-sub { font-size: 10px; letter-spacing: .25em; text-transform: uppercase; fill: var(--ink-faint); }
+.chain-claim {
+  display: flex; justify-content: center; align-items: center;
+  gap: 10px; flex-wrap: wrap; margin-top: 4px;
+}
+#hourSel {
+  font-family: var(--font-ui); font-size: 13.5px; color: var(--ink);
+  background: rgba(5, 3, 14, .55);
+  border: 1px solid rgba(243, 201, 105, .25);
+  border-radius: 999px; padding: 10px 16px; outline: none; cursor: pointer;
+}
+#hourSel option { background: var(--void-2); }
+#chainStat { text-align: center; }
+
 /* ═══ FOOTER ═════════════════════════════════════════════════════ */
 
 footer {

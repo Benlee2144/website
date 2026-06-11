@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#06040f">
   <title>The Prayer Realm — KingdomCovers</title>
-  <meta name="description" content="A living sanctuary by KingdomCovers. Lay your prayer on the altar, lift up the saints around you, and watch the realm pray across the earth — together, at His feet.">
+  <meta name="description" content="A living sanctuary by KingdomCovers. Lay your prayer on the altar, lift one another up, and watch the realm pray across the earth — together, at His feet.">
   <meta property="og:title" content="The Prayer Realm — KingdomCovers">
   <meta property="og:description" content="Lay it at His feet. A living prayer room where believers carry one another.">
   <meta property="og:type" content="website">
@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/realm.css?v=4">
+  <link rel="stylesheet" href="css/realm.css?v=5">
 </head>
 <body data-room="altar">
 
@@ -90,6 +90,7 @@
       </span>
     </div>
     <div class="crown-right">
+      <div id="flamePill" hidden><svg class="icon sm"><use href="#i-flame"/></svg><b id="flameCount">0</b></div>
       <div id="soulsPill" title="Souls in the realm right now"><span class="pulse-dot"></span><b id="soulsCount">1</b><span class="souls-label">present</span></div>
       <button id="soundBtn" class="icon-btn" title="Toggle ambience" aria-label="Toggle ambience"><svg class="icon"><use href="#i-sound"/></svg></button>
       <button id="dmBtn" class="icon-btn" title="Messages" aria-label="Messages" hidden><svg class="icon"><use href="#i-chat"/></svg><span id="dmDot" class="alert-dot" hidden></span></button>
@@ -125,13 +126,28 @@
 
     <!-- ✦ THE ALTAR -->
     <section id="altar" class="room active">
+      <div id="dailyWatch" class="glass">
+        <div class="dw-head">
+          <span class="flame" aria-hidden="true"></span>
+          <div class="dw-title">
+            <b>Today's Watch</b>
+            <span id="dwDate"></span>
+          </div>
+          <span id="dwBadge" class="dw-badge" hidden><svg class="icon sm"><use href="#i-check"/></svg> WATCH KEPT</span>
+        </div>
+        <p id="dwManna" class="dw-manna"></p>
+        <p id="dwPrompt" class="dw-prompt"></p>
+        <div id="dwList"></div>
+        <div id="dwFoot" class="dw-foot"></div>
+      </div>
+
       <div id="composer" class="glass">
         <div class="composer-head">
           <span class="flame" aria-hidden="true"></span>
           Lay it at His feet
         </div>
         <textarea id="prayerText" maxlength="1200" rows="3"
-          placeholder="What do you need prayer for, saint? Pour it out here — this altar can hold it."></textarea>
+          placeholder="What do you need prayer for? Pour it out here — this altar can hold it."></textarea>
         <div class="composer-row">
           <div id="catPick" class="chips"></div>
         </div>
@@ -186,6 +202,19 @@
         </div>
         <p class="watch-privacy">Your light is placed at city level only — never your exact location. You can dim it any time.</p>
       </div>
+
+      <div class="chain glass">
+        <div class="watch-head">
+          <h2><svg class="icon"><use href="#i-flame"/></svg> The Unbroken Chain</h2>
+          <p>An ancient practice reborn: believers covering every hour of the day, so prayer never sleeps over this community. Claim an hour — it becomes your daily appointment before the throne.</p>
+        </div>
+        <div id="chainRing"></div>
+        <div class="chain-claim">
+          <select id="hourSel" aria-label="Choose your watch hour"></select>
+          <button id="claimBtn" class="ghost-btn"><svg class="icon"><use href="#i-flame"/></svg><span id="claimLabel">Claim my watch hour</span></button>
+        </div>
+        <p id="chainStat" class="watch-privacy"></p>
+      </div>
     </section>
   </main>
 
@@ -195,7 +224,7 @@
       <button id="dmBack" class="icon-btn sm" hidden><svg class="icon"><use href="#i-back"/></svg></button>
       <div class="dm-title">
         <b id="dmTitle">Words</b>
-        <span id="dmSub">private encouragement between saints</span>
+        <span id="dmSub">private encouragement between believers</span>
       </div>
       <button id="dmClose" class="icon-btn sm"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
@@ -220,8 +249,8 @@
 
   <div id="toasts" aria-live="polite"></div>
 
-  <script src="js/config.js?v=4"></script>
-  <script src="js/usa.js?v=4"></script>
-  <script type="module" src="js/app.js?v=4"></script>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/usa.js?v=5"></script>
+  <script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>

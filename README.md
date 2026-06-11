@@ -2,7 +2,7 @@
 
 A living sanctuary on the web. Believers lay prayers on the altar, lift each
 other up with amens, reactions, and words of encouragement — send each other
-**private words**, and watch the realm pray across a **live world map**.
+**private words**, and keep watch together on a **live map of the nation**.
 Designed to feel like stepping out of the internet and into another realm:
 starfield, rising golden embers, light descending from above, an entry veil,
 hand-forged iconography (zero emoji), and optional generated ambience.
@@ -16,9 +16,12 @@ hand-forged iconography (zero emoji), and optional generated ambience.
 | Area | What happens there |
 |---|---|
 | **The Veil** | Cinematic entry portal — enter with or without heavenly ambience. |
+| **Today's Watch** | The daily heartbeat: each day the realm entrusts you with **three people to pray for** (chosen where need is greatest) plus the day's manna — a verse and a charge. Complete your three: **WATCH KEPT**. |
+| **Your Flame** | A streak in the header that grows each consecutive day you intercede for someone — Ember, Flame, Blaze, and at 30 days a **Pillar of Fire**. Miss a day and it returns to embers. |
 | **The Altar** | The prayer wall. Place a prayer (anonymously if you wish), choose a category (Healing, Family, Provision…), lift others with amens, reactions, and encouragement comments. Authors can mark prayers **Answered**. |
-| **The Watch** | A live dot-matrix Earth. Violet lights are souls present in the realm right now; gold flames are prayers rising from real places. Opt-in, city-level only — never exact locations. Click a flame to jump to that prayer. |
-| **Words** | Private one-to-one messages between saints — tap **Word** on any prayer to privately encourage its author. Only the two participants can ever read a thread (not even the keeper). |
+| **The Watch** | The live American map (Albers USA with state lines). Violet lights are souls present right now; gold flames are prayers rising from real places. Opt-in, city-level only. Click a flame to jump to that prayer. |
+| **The Unbroken Chain** | A digital revival of the Moravian prayer watch: believers each claim **one hour of the day**; a 24-segment ring shows which hours are guarded. The goal: all 24 lit — prayer that never sleeps. |
+| **Words** | Private one-to-one messages between believers — tap **Word** on any prayer to privately encourage its author. Only the two participants can ever read a thread (not even the keeper). |
 
 ## Features
 

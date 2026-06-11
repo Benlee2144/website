@@ -140,17 +140,33 @@ service cloud.firestore {
       allow read: if true;
 
       // Only you may write your own light; coarse coordinates or null.
+      // streak/lastDay/best power Your Flame; watchHourUtc is your
+      // claimed hour in the Unbroken Chain.
       allow write: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.uid == uid
         && validText(request.resource.data.name, 80)
-        && request.resource.data.keys().hasOnly(['uid','name','photo','lat','lng','lastSeen'])
+        && request.resource.data.keys().hasOnly(
+             ['uid','name','photo','lat','lng','lastSeen',
+              'streak','lastDay','best','watchHourUtc'])
         && (request.resource.data.lat == null
             || (request.resource.data.lat is number
                 && request.resource.data.lat >= -90 && request.resource.data.lat <= 90))
         && (request.resource.data.lng == null
             || (request.resource.data.lng is number
-                && request.resource.data.lng >= -180 && request.resource.data.lng <= 180));
+                && request.resource.data.lng >= -180 && request.resource.data.lng <= 180))
+        && (!request.resource.data.keys().hasAny(['streak'])
+            || (request.resource.data.streak is int
+                && request.resource.data.streak >= 0 && request.resource.data.streak < 100000))
+        && (!request.resource.data.keys().hasAny(['lastDay'])
+            || request.resource.data.lastDay is int)
+        && (!request.resource.data.keys().hasAny(['best'])
+            || request.resource.data.best is int)
+        && (!request.resource.data.keys().hasAny(['watchHourUtc'])
+            || request.resource.data.watchHourUtc == null
+            || (request.resource.data.watchHourUtc is int
+                && request.resource.data.watchHourUtc >= 0
+                && request.resource.data.watchHourUtc <= 23));
 
       allow delete: if signedIn() && request.auth.uid == uid;
     }
